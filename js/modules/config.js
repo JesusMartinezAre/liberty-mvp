@@ -1,31 +1,33 @@
 // ── APPLICATION CONSTANTS ──────────────────────────────────────────────────
 // Single source of truth for all configuration. Nothing here should mutate.
+// Secrets are read from Vite environment variables (import.meta.env.VITE_*).
+// In development: values come from .env  — in production: Netlify env vars.
 
 export const FIREBASE_CONFIG = {
-  apiKey:            'AIzaSyBraEBnVPracs_l7YJVWU2YlVabP-86DbI',
-  authDomain:        'coca-liberty-inventory.firebaseapp.com',
-  databaseURL:       'https://coca-liberty-inventory-default-rtdb.firebaseio.com',
-  projectId:         'coca-liberty-inventory',
-  storageBucket:     'coca-liberty-inventory.firebasestorage.app',
-  messagingSenderId: '447099037329',
-  appId:             '1:447099037329:web:c1fc7167d653160cff4130',
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL:       import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 export const COLLECTION     = 'liberty_inventory';
 export const OFFLINE_KEY    = 'liberty_offline_queue';
-export const CORRECT_PIN    = '2026';
+export const CORRECT_PIN    = import.meta.env.VITE_CORRECT_PIN;
 export const PAGE_ORDER     = ['overview', 'inventory', 'map'];
 
 // ── CLOUDINARY ───────────────────────────────────────────────────────────────
-export const CLOUDINARY_CLOUD      = 'dbiwafffa';
-export const CLOUDINARY_PRESET     = 'liberty_photos';
+export const CLOUDINARY_CLOUD      = import.meta.env.VITE_CLOUDINARY_CLOUD;
+export const CLOUDINARY_PRESET     = import.meta.env.VITE_CLOUDINARY_PRESET;
 export const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
 
 // ── EMAILJS ──────────────────────────────────────────────────────────────────
-export const EMAILJS_SERVICE  = 'service_17309zo';
-export const EMAILJS_TEMPLATE = 'template_3em34jk';
-export const EMAILJS_KEY      = '-7R-WGSWEXH7vT1Xj';
-export const NOTIFY_EMAIL     = 'efr@popatelier.net';
+export const EMAILJS_SERVICE  = import.meta.env.VITE_EMAILJS_SERVICE;
+export const EMAILJS_TEMPLATE = import.meta.env.VITE_EMAILJS_TEMPLATE;
+export const EMAILJS_KEY      = import.meta.env.VITE_EMAILJS_KEY;
+export const NOTIFY_EMAIL     = import.meta.env.VITE_NOTIFY_EMAIL;
 
 // ── STATUS DEFINITIONS ────────────────────────────────────────────────────────
 export const STATUSES = [

@@ -1,0 +1,19 @@
+[build]
+  command         = "npm run build"
+  publish         = "dist"
+  node_bundler    = "esbuild"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Redirect bare /auth to the login page
+[[redirects]]
+  from   = "/auth"
+  to     = "/auth/login.html"
+  status = 200
+
+# SPA-style fallback: unknown paths → index.html
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

@@ -1,0 +1,14 @@
+{
+  "name": "coca-cola-liberty-inventory",
+  "version": "2.0.0",
+  "description": "Coca-Cola Liberty digital display inventory — FIFA World Cup 2026",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^8.0.10"
+  }
+}
