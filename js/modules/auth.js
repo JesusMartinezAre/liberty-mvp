@@ -20,7 +20,7 @@ export function initAuthGuard() {
   auth.onAuthStateChanged(async user => {
     // No session → back to login
     if (!user) {
-      window.location.replace('auth/login.html');
+      window.location.replace('/auth/login.html');
       return;
     }
 
@@ -29,7 +29,7 @@ export function initAuthGuard() {
     // belongs to an account outside the allowed domains.
     if (!isAllowedDomain(user.email)) {
       await auth.signOut();
-      window.location.replace('auth/login.html');
+      window.location.replace('/auth/login.html');
       return;
     }
 
@@ -50,10 +50,34 @@ export function initAuthGuard() {
   });
 }
 
-// ── SIGN OUT ──────────────────────────────────────────────────────────────────
-export function handleSignOut() {
-  auth.signOut();
-  // onAuthStateChanged fires with null → auto-redirects to login.html
+// ── HARD SIGN-OUT ─────────────────────────────────────────────────────────────
+export async function handleSignOut() {
+  // 1. Destroy the Firebase session token — revokes the JWT on the server.
+  await auth.signOut();
+
+  // 2. Wipe in-memory application state. The navigation below will garbage-
+  //    collect everything, but clearing explicitly prevents any brief window
+  //    where a script could still read user data after the token is gone.
+  state.DATA                   = [];
+  state.currentUser            = '';
+  state.currentEmail           = '';
+  state.isReadOnly             = false;
+  state.pinEntry               = '';
+  state._appBooted             = false;
+  state.currentModalId         = null;
+  state.currentLightboxPhotoId = null;
+  state.filterPlatform         = 'all';
+  state.filterStatus           = '';
+  state.filterVenue            = '';
+  state.filterQ                = '';
+  state.currentVenue           = 'metlife';
+  state._activityAll           = [];
+  state.importRows             = [];
+  state.fieldMode              = false;
+
+  // 3. Replace (not push) the current history entry so the Back button
+  //    cannot return to the authenticated dashboard.
+  window.location.replace('/auth/login.html');
 }
 
 // ── READ-ONLY GUARD ───────────────────────────────────────────────────────────

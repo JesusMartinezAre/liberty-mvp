@@ -100,10 +100,15 @@ document.addEventListener('DOMContentLoaded', () => {
   checkDesktop();
   updateOnlineStatus();
 
-  // Logout buttons
+  // Logout buttons — disable + show feedback while await auth.signOut() completes
   ['logout-btn', 'logout-btn-sidebar'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('click', handleSignOut);
+    if (!el) return;
+    el.addEventListener('click', async () => {
+      el.disabled    = true;
+      el.textContent = 'Signing out…';
+      await handleSignOut();
+    });
   });
 
   // Legacy login overlay enter-key wiring

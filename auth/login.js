@@ -19,7 +19,7 @@ const DOMAIN_MAP = {
 // ── ALREADY-LOGGED-IN REDIRECT ────────────────────────────────────────────────
 auth.onAuthStateChanged(user => {
   if (user && isAllowedDomain(user.email)) {
-    window.location.replace('../index.html');
+    window.location.replace('/');
   }
 });
 
