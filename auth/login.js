@@ -18,7 +18,7 @@ const auth = firebase.auth();
 // Redirect already-verified users straight into the app
 auth.onAuthStateChanged(user => {
   if (user && user.emailVerified) {
-    window.location.replace('index.html');
+    window.location.replace('../index.html');
   }
 });
 
@@ -122,7 +122,7 @@ async function handleLogin(e) {
       return;
     }
 
-    window.location.replace('index.html');
+    window.location.replace('../index.html');
   } catch (err) {
     errEl.textContent = authErrMsg(err);
   } finally {
