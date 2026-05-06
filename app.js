@@ -119,7 +119,18 @@ window.addEventListener('load', ()=>{
     const el = document.getElementById(id);
     if(el) el.addEventListener('keydown', e=>{ if(e.key==='Enter') loginContinue(); });
   });
+
+  // Wire logout buttons (header + sidebar)
+  ['logout-btn','logout-btn-sidebar'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('click', handleSignOut);
+  });
 });
+
+function handleSignOut(){
+  firebase.auth().signOut();
+  // onAuthStateChanged fires with null → redirects to login.html automatically
+}
 
 function guardEdit(){
   if(isReadOnly){ showToast('🔒 Solo lectura — PIN requerido'); return false; }
@@ -267,6 +278,35 @@ let filterQ        = '';
 
 firebase.initializeApp(FIREBASE_CONFIG);
 db = firebase.firestore();
+
+// ── AUTH GUARD ───────────────────────────────────────────────────────────────
+// Kicks out any unauthenticated or unverified user before the app boots.
+// Also serves as the single app boot trigger — data only loads after auth is confirmed.
+const auth = firebase.auth();
+let _appBooted = false;
+
+auth.onAuthStateChanged(user => {
+  if (!user || !user.emailVerified) {
+    window.location.replace('login.html');
+    return;
+  }
+  // Populate identity used throughout the app (Firestore writes, toasts, etc.)
+  currentUser  = user.displayName || user.email.split('@')[0];
+  currentEmail = user.email;
+
+  // Dismiss legacy overlays left in the HTML — they are superseded by login.html
+  ['login-overlay', 'pin-overlay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  // Boot the Firestore listener exactly once per session
+  if (!_appBooted) {
+    _appBooted = true;
+    seedIfEmpty().then(() => startListener());
+  }
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ── SEED ────────────────────────────────────────
 const EXCEL_SEED = [
@@ -661,11 +701,11 @@ function renderDonut(){
 }
 
 // ── BAR FILLS ────────────────────────────────────
+// Data boot is handled by the auth.onAuthStateChanged guard above.
 window.addEventListener('load',()=>{
   setTimeout(()=>{
     document.querySelectorAll('.bar-fill').forEach(el=>{el.style.width=el.dataset.w});
   }, 500);
-  seedIfEmpty().then(()=>startListener());
 });
 
 // ── LIST ─────────────────────────────────────────

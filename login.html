@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>POPA FIFA Headers — Sign In</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Geist+Mono:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0a0a0c;
+      --surface:    #111114;
+      --card:       #16161a;
+      --border:     rgba(255,255,255,0.07);
+      --red:        #F40009;
+      --red-dim:    rgba(244,0,9,0.10);
+      --text:       #f0f0f2;
+      --text-sub:   rgba(240,240,242,0.55);
+      --text-muted: rgba(240,240,242,0.32);
+      --sans:       'Bricolage Grotesque', system-ui, sans-serif;
+      --mono:       'Geist Mono', monospace;
+      --radius:     16px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── PAGE LAYOUT ── */
+    .auth-root {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px 48px;
+      gap: 28px;
+    }
+
+    /* ── BRAND ── */
+    .brand { text-align: center; }
+
+    .brand-eyebrow {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 8px;
+    }
+    .brand-title {
+      font-size: clamp(24px, 6vw, 32px);
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      line-height: 1.05;
+    }
+    .brand-sub {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 7px;
+      font-family: var(--mono);
+    }
+
+    /* ── CARD WRAPPER ── */
+    /* Single centered card — panels switch inside it */
+    .card-wrap {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      /* Adapts height to whichever panel is active */
+    }
+
+    /* ── PANELS: default hidden, active shown with fade-in ── */
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel {
+      display: none;          /* hidden by default */
+      flex-direction: column;
+      gap: 18px;
+      padding: 44px 36px 40px;
+      animation: panelIn .22s ease;
+    }
+    .panel.active { display: flex; }
+
+    /* ── VERIFY STATE: replaces the card ── */
+    .verify-wrap {
+      width: 100%;
+      max-width: 420px;
+    }
+    .verify-inner {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 52px 36px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 16px;
+      animation: panelIn .22s ease;
+    }
+    .verify-icon  { font-size: 48px; line-height: 1; }
+    .verify-title { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+    .verify-body  {
+      font-size: 13px;
+      color: var(--text-sub);
+      line-height: 1.65;
+      max-width: 300px;
+    }
+
+    /* ── PANEL HEADER ── */
+    .panel-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -.3px;
+    }
+    .panel-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    /* ── FORM FIELDS ── */
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      font-family: var(--mono);
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px 15px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus {
+      border-color: rgba(244,0,9,0.45);
+      box-shadow: 0 0 0 3px rgba(244,0,9,0.08);
+    }
+    input::placeholder { color: var(--text-muted); }
+
+    /* ── PRIMARY BUTTON ── */
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: var(--red);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .2px;
+      transition: opacity .15s, transform .1s;
+      margin-top: 4px;
+    }
+    .btn-primary:hover   { opacity: .88; }
+    .btn-primary:active  { transform: scale(.98); }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    /* ── GHOST BUTTON ── */
+    .btn-ghost {
+      padding: 11px 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-sub);
+      font-family: var(--sans);
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+      margin-top: 6px;
+    }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+
+    /* ── ERROR MESSAGE ── */
+    .err-msg {
+      font-size: 11.5px;
+      color: #ff6b6b;
+      font-family: var(--mono);
+      line-height: 1.45;
+      min-height: 16px;
+    }
+
+    /* ── TOGGLE LINK ── */
+    .toggle-link {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      margin-top: 2px;
+    }
+    .toggle-link button {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      text-decoration-color: rgba(244,0,9,0.4);
+      transition: text-decoration-color .15s;
+    }
+    .toggle-link button:hover {
+      text-decoration-color: var(--red);
+    }
+
+    /* ── HIDDEN UTILITY ── */
+    .hidden { display: none !important; }
+
+    /* ── FOOTER ── */
+    .footer-note {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="auth-root">
+
+  <!-- Branding -->
+  <div class="brand">
+    <div class="brand-eyebrow">Coca-Cola Liberty · FIFA World Cup 2026</div>
+    <div class="brand-title">FIFA Headers</div>
+    <div class="brand-sub">Digital Display Inventory Platform</div>
+  </div>
+
+  <!-- Single card — panels switch inside -->
+  <div class="card-wrap" id="main-panels">
+
+    <!-- ── LOGIN PANEL (default) ── -->
+    <div class="panel active" id="panel-login">
+      <div>
+        <div class="panel-title">Iniciar Sesión</div>
+        <div class="panel-desc">Usa tus credenciales corporativas</div>
+      </div>
+
+      <form id="form-login" class="field-group" novalidate>
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="tu@popatelier.net"
+                 autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="login-pass">Contraseña</label>
+          <input type="password" id="login-pass" placeholder="••••••••"
+                 autocomplete="current-password" required>
+        </div>
+        <div class="err-msg" id="login-err" role="alert"></div>
+        <button type="submit" class="btn-primary" id="login-btn">Iniciar Sesión</button>
+      </form>
+
+      <div class="toggle-link">
+        ¿Eres nuevo?
+        <button type="button" onclick="switchToRegister()">Regístrate aquí</button>
+      </div>
+    </div>
+
+    <!-- ── REGISTER PANEL (hidden by default) ── -->
+    <div class="panel" id="panel-register">
+      <div>
+        <div class="panel-title">Crear Cuenta</div>
+        <div class="panel-desc">Solo @popatelier.net o @liberty.com</div>
+      </div>
+
+      <form id="form-register" class="field-group" novalidate>
+        <div class="field">
+          <label for="reg-name">Nombre completo</label>
+          <input type="text" id="reg-name" placeholder="Tu nombre completo"
+                 autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="reg-email">Email corporativo</label>
+          <input type="email" id="reg-email" placeholder="tu@popatelier.net"
+                 autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="reg-pass">Contraseña</label>
+          <input type="password" id="reg-pass" placeholder="Mínimo 8 caracteres"
+                 autocomplete="new-password" required>
+        </div>
+        <div class="field">
+          <label for="reg-confirm">Confirmar contraseña</label>
+          <input type="password" id="reg-confirm" placeholder="Repite tu contraseña"
+                 autocomplete="new-password" required>
+        </div>
+        <div class="err-msg" id="reg-err" role="alert"></div>
+        <button type="submit" class="btn-primary" id="reg-btn">Crear Cuenta</button>
+      </form>
+
+      <div class="toggle-link">
+        ¿Ya tienes cuenta?
+        <button type="button" onclick="switchToLogin()">Inicia sesión</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── VERIFY STATE (replaces the card) ── -->
+  <div class="verify-wrap hidden" id="verify-panel">
+    <div class="verify-inner">
+      <div class="verify-icon">✉️</div>
+      <div class="verify-title">Revisa tu correo</div>
+      <div class="verify-body">
+        Te enviamos un enlace de verificación a tu email.<br>
+        Haz clic en él para activar tu cuenta y luego inicia sesión.
+      </div>
+      <button class="btn-ghost" onclick="switchToLogin()">Volver a Iniciar Sesión</button>
+    </div>
+  </div>
+
+  <div class="footer-note">POP Atelier LLC · popatelier.net · Acceso restringido</div>
+
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="login.js"></script>
+</body>
+</html>

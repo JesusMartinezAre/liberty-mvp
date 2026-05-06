@@ -24,6 +24,7 @@
 <!-- Firebase v9 compat -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <!-- SheetJS for Excel import -->
@@ -108,6 +109,7 @@
   <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:4px">
     <button class="import-btn" onclick="triggerImport()" style="padding:5px 10px;font-size:9px;font-weight:700;letter-spacing:.5px">Import</button>
     <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcelFile(event)">
+    <button id="logout-btn" style="padding:5px 10px;font-size:9px;font-weight:700;letter-spacing:.5px;background:transparent;border:1px solid rgba(244,0,9,0.3);border-radius:6px;color:var(--red);cursor:pointer;font-family:var(--mono);transition:background .15s,color .15s">Cerrar Sesión</button>
     <div class="live-pill"><div class="live-dot"></div>LIVE</div>
   </div>
 
@@ -154,6 +156,7 @@
   <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
     <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;padding:0 12px 10px;font-family:var(--mono)">Actions</div>
     <button class="sidebar-nav-btn" onclick="triggerImport()"><span class="s-icon">⬆</span> Import Excel</button>
+    <button class="sidebar-nav-btn" id="logout-btn-sidebar" style="color:var(--red);margin-top:4px"><span class="s-icon">↩</span> Cerrar Sesión</button>
   </div>
 
   <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border)">
