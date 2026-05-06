@@ -1111,32 +1111,43 @@ function renderStadiumMap(){
 
   svg.innerHTML = pins;
 
-  // Area list
+  // Area list — only render areas that have actual units assigned
   const areaListEl = document.getElementById('map-area-list');
   const areas = venue.areas;
-  areaListEl.innerHTML = areas.map(area=>{
-    const units = assignments[area.id] || [];
-    const pct = area.slots>0 ? Math.round(units.length/area.slots*100) : 0;
-    return `
-    <div class="area-row">
-      <div style="width:10px;height:10px;border-radius:3px;background:${area.color};flex-shrink:0"></div>
-      <div class="area-info">
-        <div class="area-name">${area.label}</div>
-        <div class="area-sub">${area.sub}</div>
-      </div>
-      <div class="area-bar"><div class="area-bar-fill" style="width:${pct}%;background:${area.color}"></div></div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--text-sub);min-width:40px;text-align:right">
-        ${units.length}/${area.slots}
-      </div>
-    </div>`;
-  }).join('');
+  const activeAreas = areas.filter(area => (assignments[area.id]||[]).length > 0);
+  if(activeAreas.length === 0){
+    areaListEl.innerHTML = '<div style="padding:20px 0;text-align:center;font-size:12px;color:var(--text-muted);font-family:var(--mono)">No areas generated yet</div>';
+  } else {
+    areaListEl.innerHTML = activeAreas.map(area=>{
+      const units = assignments[area.id];
+      const pct = area.slots>0 ? Math.round(units.length/area.slots*100) : 0;
+      return `
+      <div class="area-row">
+        <div style="width:10px;height:10px;border-radius:3px;background:${area.color};flex-shrink:0"></div>
+        <div class="area-info">
+          <div class="area-name">${area.label}</div>
+          <div class="area-sub">${area.sub}</div>
+        </div>
+        <div class="area-bar"><div class="area-bar-fill" style="width:${pct}%;background:${area.color}"></div></div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-sub);min-width:40px;text-align:right">
+          ${units.length}/${area.slots}
+        </div>
+      </div>`;
+    }).join('');
+  }
 
-  // Unassigned
-  const unassigned = DATA.filter(d=>!d.venue || d.venue!==currentVenue);
-  document.getElementById('unassigned-count').textContent = `(${unassigned.length})`;
-  document.getElementById('unassigned-list').innerHTML = unassigned.slice(0,40).map(d=>`
-    <button class="map-unit-chip" onclick="openModal('${d.id}')">${d.digitalHeader}</button>
-  `).join('') + (unassigned.length>40 ? `<div style="font-size:10px;color:var(--text-muted);padding:4px">+${unassigned.length-40} more</div>` : '');
+  // Unassigned — only units belonging to this venue but with no area yet
+  const unassigned = DATA.filter(d => d.venue===currentVenue && (!d.venueArea || d.venueArea==='—'));
+  const unassignedSection = document.getElementById('unassigned-section');
+  if(unassigned.length === 0){
+    if(unassignedSection) unassignedSection.style.display = 'none';
+  } else {
+    if(unassignedSection) unassignedSection.style.display = '';
+    document.getElementById('unassigned-count').textContent = `(${unassigned.length})`;
+    document.getElementById('unassigned-list').innerHTML = unassigned.slice(0,40).map(d=>`
+      <button class="map-unit-chip" onclick="openModal('${d.id}')">${d.digitalHeader}</button>
+    `).join('') + (unassigned.length>40 ? `<div style="font-size:10px;color:var(--text-muted);padding:4px">+${unassigned.length-40} more</div>` : '');
+  }
 }
 
 // Assign venue + area to a unit
