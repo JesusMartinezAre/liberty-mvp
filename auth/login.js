@@ -1,157 +1,198 @@
-// ── FIREBASE CONFIG (mirrors app.js — do not change independently) ──
-const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyBraEBnVPracs_l7YJVWU2YlVabP-86DbI",
-  authDomain:        "coca-liberty-inventory.firebaseapp.com",
-  databaseURL:       "https://coca-liberty-inventory-default-rtdb.firebaseio.com",
-  projectId:         "coca-liberty-inventory",
-  storageBucket:     "coca-liberty-inventory.firebasestorage.app",
-  messagingSenderId: "447099037329",
-  appId:             "1:447099037329:web:c1fc7167d653160cff4130"
-};
+// ── SMART LOGIN — SSO ROUTING ──────────────────────────────────────────────────
+// Domain → provider mapping:
+//   @popatelier.net   → Google Workspace (hd-restricted)
+//   @libertycoke.com  → Microsoft 365 / Azure AD
+// Any other domain is rejected before touching Firebase.
 
-const ALLOWED_DOMAINS = ['popatelier.net', 'libertycoke.com'];
+import { FIREBASE_CONFIG } from '../js/modules/config.js';
 
-// ── INIT ─────────────────────────────────────────────────────────────────────
+// firebase is the compat CDN global loaded before this module.
 if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
 const auth = firebase.auth();
 
-// Redirect already-verified users straight into the app
+// ── DOMAIN → PROVIDER MAP ─────────────────────────────────────────────────────
+const DOMAIN_MAP = {
+  'popatelier.net':  'google',
+  'libertycoke.com': 'microsoft',
+};
+
+// ── ALREADY-LOGGED-IN REDIRECT ────────────────────────────────────────────────
 auth.onAuthStateChanged(user => {
-  if (user && user.emailVerified) {
+  if (user && isAllowedDomain(user.email)) {
     window.location.replace('../index.html');
   }
 });
 
-// ── PANEL HELPERS ────────────────────────────────────────────────────────────
-// Toggle between login and register inside the single card.
-// Clears the other panel's error so stale messages never bleed across.
-function switchToLogin() {
-  document.getElementById('verify-panel').classList.add('hidden');
-  document.getElementById('main-panels').classList.remove('hidden');
-  document.getElementById('panel-register').classList.remove('active');
-  document.getElementById('panel-login').classList.add('active');
-  document.getElementById('reg-err').textContent = '';
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function extractDomain(email) {
+  return (email.split('@')[1] || '').toLowerCase().trim();
 }
 
-function switchToRegister() {
-  document.getElementById('panel-login').classList.remove('active');
-  document.getElementById('panel-register').classList.add('active');
-  document.getElementById('login-err').textContent = '';
-}
-
-function showVerifyPanel() {
-  document.getElementById('main-panels').classList.add('hidden');
-  document.getElementById('verify-panel').classList.remove('hidden');
-}
-
-// ── DOMAIN VALIDATION ────────────────────────────────────────────────────────
 function isAllowedDomain(email) {
-  const domain = (email.split('@')[1] || '').toLowerCase();
-  return ALLOWED_DOMAINS.includes(domain);
+  return extractDomain(email) in DOMAIN_MAP;
 }
 
-// ── REGISTRATION ─────────────────────────────────────────────────────────────
-async function handleRegister(e) {
-  e.preventDefault();
+function buildProvider(domain) {
+  if (DOMAIN_MAP[domain] === 'google') {
+    const p = new firebase.auth.GoogleAuthProvider();
+    // hd restricts the account picker to this hosted domain only.
+    p.setCustomParameters({ hd: 'popatelier.net' });
+    return p;
+  }
 
-  const name    = document.getElementById('reg-name').value.trim();
-  const email   = document.getElementById('reg-email').value.trim().toLowerCase();
-  const pass    = document.getElementById('reg-pass').value;
-  const confirm = document.getElementById('reg-confirm').value;
-  const errEl   = document.getElementById('reg-err');
-  const btn     = document.getElementById('reg-btn');
+  // microsoft.com — Azure AD / Microsoft 365
+  const p = new firebase.auth.OAuthProvider('microsoft.com');
+  p.setCustomParameters({
+    prompt: 'select_account',
+    // tenant: 'YOUR_AZURE_TENANT_ID',  ← add when client provides it
+  });
+  return p;
+}
 
-  errEl.textContent = '';
+// ── PROVIDER HINT (real-time as user types) ───────────────────────────────────
+const PROVIDER_META = {
+  google: {
+    label: 'Will sign in with Google Workspace',
+    icon:  'G',
+    cls:   'google',
+  },
+  microsoft: {
+    label: 'Will sign in with Microsoft 365',
+    icon:  'M',
+    cls:   'microsoft',
+  },
+};
 
-  // Validate fields
-  if (!name)  { errEl.textContent = 'Full name is required.'; return; }
-  if (!email) { errEl.textContent = 'Corporate email is required.'; return; }
+function updateProviderHint(email) {
+  const hintEl = document.getElementById('provider-hint');
+  const iconEl = document.getElementById('provider-icon');
+  const textEl = document.getElementById('provider-hint-text');
 
-  // Domain restriction — abort before any Firebase call
-  if (!isAllowedDomain(email)) {
-    errEl.textContent = 'Unregistered corporate domain. Only @popatelier.net or @libertycoke.com are allowed.';
+  const domain   = extractDomain(email);
+  const provider = DOMAIN_MAP[domain];
+
+  if (!email.includes('@') || !provider) {
+    hintEl.classList.remove('visible');
     return;
   }
 
-  if (pass.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; return; }
-  if (pass !== confirm) { errEl.textContent = 'Passwords do not match.'; return; }
-
-  btn.disabled    = true;
-  btn.textContent = 'Creating account…';
-
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email, pass);
-    await cred.user.updateProfile({ displayName: name });
-    await cred.user.sendEmailVerification();
-    await auth.signOut(); // force email verification before first access
-    showVerifyPanel();
-  } catch (err) {
-    errEl.textContent = authErrMsg(err);
-  } finally {
-    btn.disabled    = false;
-    btn.textContent = 'Create Account';
-  }
+  const meta      = PROVIDER_META[provider];
+  iconEl.textContent = meta.icon;
+  iconEl.className   = `provider-icon ${meta.cls}`;
+  textEl.textContent = meta.label;
+  hintEl.classList.add('visible');
 }
 
-// ── LOGIN ─────────────────────────────────────────────────────────────────────
-async function handleLogin(e) {
-  e.preventDefault();
-
-  const email = document.getElementById('login-email').value.trim().toLowerCase();
-  const pass  = document.getElementById('login-pass').value;
-  const errEl = document.getElementById('login-err');
+// ── BUTTON STATE HELPERS ──────────────────────────────────────────────────────
+function setLoading(providerName) {
   const btn   = document.getElementById('login-btn');
+  const label = document.getElementById('btn-label');
+  btn.disabled     = true;
+  btn.classList.add('loading');
+  label.textContent = `Opening ${providerName}…`;
+}
 
-  errEl.textContent = '';
+function resetButton() {
+  const btn   = document.getElementById('login-btn');
+  const label = document.getElementById('btn-label');
+  btn.disabled = false;
+  btn.classList.remove('loading');
+  label.textContent = 'Continue';
+}
 
-  if (!email || !pass) { errEl.textContent = 'Email and password are required.'; return; }
+function showError(msg) {
+  document.getElementById('login-err').textContent = msg;
+}
 
-  btn.disabled    = true;
-  btn.textContent = 'Signing in…';
+function clearError() {
+  document.getElementById('login-err').textContent = '';
+}
+
+// ── MAIN SUBMIT HANDLER ───────────────────────────────────────────────────────
+async function handleContinue(e) {
+  e.preventDefault();
+  clearError();
+
+  const email  = document.getElementById('login-email').value.trim().toLowerCase();
+
+  if (!email || !email.includes('@') || !email.includes('.')) {
+    showError('Please enter a valid corporate email address.');
+    return;
+  }
+
+  const domain       = extractDomain(email);
+  const providerType = DOMAIN_MAP[domain];
+
+  // ── Guard 1: domain whitelist ────────────────────────────────────────────
+  if (!providerType) {
+    showError('Unauthorized domain. Please use your corporate email.');
+    return;
+  }
+
+  const providerLabel = providerType === 'google' ? 'Google' : 'Microsoft';
+  setLoading(providerLabel);
 
   try {
-    const cred = await auth.signInWithEmailAndPassword(email, pass);
+    const provider = buildProvider(domain);
+    const result   = await auth.signInWithPopup(provider);
+    const user     = result.user;
 
-    // Reload to get the freshest emailVerified flag from Firebase servers
-    await cred.user.reload();
-
-    if (!cred.user.emailVerified) {
+    // ── Guard 2: post-login domain check (defense-in-depth) ──────────────
+    // Catches edge cases where the SSO popup was used with a different account.
+    if (!isAllowedDomain(user.email)) {
       await auth.signOut();
-      errEl.textContent =
-        'You must verify your email before accessing the platform. Please check your inbox.';
+      resetButton();
+      showError(
+        `Access denied. "${user.email}" is not an authorized account.\n` +
+        `Please sign in with your @popatelier.net or @libertycoke.com address.`
+      );
       return;
     }
 
+    // ── Success → hand off to the app ────────────────────────────────────
     window.location.replace('../index.html');
+
   } catch (err) {
-    errEl.textContent = authErrMsg(err);
-  } finally {
-    btn.disabled    = false;
-    btn.textContent = 'Sign In';
+    resetButton();
+
+    // User deliberately closed the popup — silent reset, no error shown.
+    if (
+      err.code === 'auth/popup-closed-by-user' ||
+      err.code === 'auth/cancelled-popup-request'
+    ) {
+      return;
+    }
+
+    showError(ssoErrorMessage(err));
   }
 }
 
-// ── ERROR MESSAGES ────────────────────────────────────────────────────────────
-function authErrMsg(err) {
+// ── SSO ERROR → HUMAN MESSAGE ─────────────────────────────────────────────────
+function ssoErrorMessage(err) {
   const MAP = {
-    'auth/user-not-found':         'No account found with this email.',
-    'auth/wrong-password':         'Incorrect password.',
-    'auth/invalid-credential':     'Invalid email or password.',
-    'auth/email-already-in-use':   'An account with this email already exists.',
-    'auth/invalid-email':          'Invalid email address.',
-    'auth/weak-password':          'Password is too weak. Use at least 8 characters.',
-    'auth/too-many-requests':      'Too many failed attempts. Please try again later.',
-    'auth/network-request-failed': 'Network error. Check your connection and retry.',
+    'auth/popup-blocked':
+      'Pop-up was blocked. Please allow pop-ups for this site and try again.',
+    'auth/unauthorized-domain':
+      'This domain is not authorized in Firebase Console. Contact your administrator.',
+    'auth/account-exists-with-different-credential':
+      'An account already exists with a different sign-in method for this email.',
+    'auth/user-disabled':
+      'This account has been disabled. Contact your administrator.',
+    'auth/network-request-failed':
+      'Network error — check your connection and try again.',
+    'auth/internal-error':
+      'An internal error occurred. Please try again.',
   };
-  return MAP[err.code] || err.message;
+  return MAP[err.code] || `Sign-in failed: ${err.message}`;
 }
 
-// ── WIRE FORMS ────────────────────────────────────────────────────────────────
+// ── WIRE UP ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('form-login').addEventListener('submit', handleLogin);
-  document.getElementById('form-register').addEventListener('submit', handleRegister);
-});
+  document.getElementById('form-login').addEventListener('submit', handleContinue);
 
-// Expose for inline onclick="" handlers in login.html
-window.switchToLogin    = switchToLogin;
-window.switchToRegister = switchToRegister;
+  // Real-time provider hint as the user types their email
+  document.getElementById('login-email').addEventListener('input', e => {
+    updateProviderHint(e.target.value.trim().toLowerCase());
+    clearError();
+  });
+});

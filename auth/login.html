@@ -44,7 +44,6 @@
 
     /* ── BRAND ── */
     .brand { text-align: center; }
-
     .brand-eyebrow {
       font-family: var(--mono);
       font-size: 10px;
@@ -66,8 +65,7 @@
       font-family: var(--mono);
     }
 
-    /* ── CARD WRAPPER ── */
-    /* Single centered card — panels switch inside it */
+    /* ── CARD ── */
     .card-wrap {
       width: 100%;
       max-width: 420px;
@@ -75,75 +73,24 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       overflow: hidden;
-      /* Adapts height to whichever panel is active */
     }
 
-    /* ── PANELS: default hidden, active shown with fade-in ── */
     @keyframes panelIn {
       from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
     .panel {
-      display: none;          /* hidden by default */
+      display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 20px;
       padding: 44px 36px 40px;
       animation: panelIn .22s ease;
     }
-    .panel.active { display: flex; }
 
-    /* ── VERIFY STATE: replaces the card ── */
-    .verify-wrap {
-      width: 100%;
-      max-width: 420px;
-    }
-    .verify-inner {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 52px 36px 48px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      gap: 16px;
-      animation: panelIn .22s ease;
-    }
-    .verify-icon  { font-size: 48px; line-height: 1; }
-    .verify-title { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
-    .verify-body  {
-      font-size: 13px;
-      color: var(--text-sub);
-      line-height: 1.65;
-      max-width: 300px;
-    }
-
-    /* ── PANEL HEADER ── */
-    .panel-title {
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: -.3px;
-    }
-    .panel-desc {
-      font-size: 11px;
-      color: var(--text-muted);
-      font-family: var(--mono);
-      margin-top: 4px;
-      line-height: 1.5;
-    }
-
-    /* ── FORM FIELDS ── */
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+    /* ── FORM ── */
+    .field-group { display: flex; flex-direction: column; gap: 14px; }
+    .field       { display: flex; flex-direction: column; gap: 6px; }
 
     label {
       font-size: 10px;
@@ -154,9 +101,7 @@
       font-family: var(--mono);
     }
 
-    input[type="text"],
-    input[type="email"],
-    input[type="password"] {
+    input[type="email"] {
       width: 100%;
       padding: 12px 15px;
       background: var(--surface);
@@ -174,7 +119,7 @@
     }
     input::placeholder { color: var(--text-muted); }
 
-    /* ── PRIMARY BUTTON ── */
+    /* ── CONTINUE BUTTON ── */
     .btn-primary {
       width: 100%;
       padding: 14px;
@@ -187,29 +132,58 @@
       font-weight: 700;
       cursor: pointer;
       letter-spacing: .2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       transition: opacity .15s, transform .1s;
       margin-top: 4px;
     }
     .btn-primary:hover   { opacity: .88; }
     .btn-primary:active  { transform: scale(.98); }
-    .btn-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
-    /* ── GHOST BUTTON ── */
-    .btn-ghost {
-      padding: 11px 28px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text-sub);
-      font-family: var(--sans);
-      font-size: 13px;
-      cursor: pointer;
-      transition: border-color .15s, color .15s;
-      margin-top: 6px;
+    /* ── SPINNER ── */
+    .spinner {
+      width: 15px;
+      height: 15px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .65s linear infinite;
+      display: none;
+      flex-shrink: 0;
     }
-    .btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-primary.loading .spinner { display: block; }
 
-    /* ── ERROR MESSAGE ── */
+    /* ── PROVIDER HINT ── */
+    .provider-hint {
+      min-height: 22px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      transition: opacity .2s;
+      opacity: 0;
+    }
+    .provider-hint.visible { opacity: 1; }
+    .provider-icon {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .provider-icon.google    { background: #fff; color: #4285F4; }
+    .provider-icon.microsoft { background: #fff; }
+
+    /* ── ERROR ── */
     .err-msg {
       font-size: 11.5px;
       color: #ff6b6b;
@@ -218,33 +192,35 @@
       min-height: 16px;
     }
 
-    /* ── TOGGLE LINK ── */
-    .toggle-link {
-      text-align: center;
-      font-size: 12px;
+    /* ── DIVIDER ── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       color: var(--text-muted);
+      font-size: 10px;
       font-family: var(--mono);
-      margin-top: 2px;
+      letter-spacing: .5px;
     }
-    .toggle-link button {
-      background: none;
-      border: none;
-      padding: 0;
-      color: var(--red);
-      font-family: var(--mono);
-      font-size: 12px;
-      cursor: pointer;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-      text-decoration-color: rgba(244,0,9,0.4);
-      transition: text-decoration-color .15s;
-    }
-    .toggle-link button:hover {
-      text-decoration-color: var(--red);
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
     }
 
-    /* ── HIDDEN UTILITY ── */
-    .hidden { display: none !important; }
+    /* ── SSO NOTICE ── */
+    .sso-notice {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+    .sso-notice strong { color: var(--text-sub); font-weight: 600; }
 
     /* ── FOOTER ── */
     .footer-note {
@@ -253,6 +229,8 @@
       color: var(--text-muted);
       text-align: center;
     }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -266,86 +244,53 @@
     <div class="brand-sub">Digital Display Inventory Platform</div>
   </div>
 
-  <!-- Single card — panels switch inside -->
-  <div class="card-wrap" id="main-panels">
+  <!-- Login card -->
+  <div class="card-wrap">
+    <div class="panel">
 
-    <!-- ── LOGIN PANEL (default) ── -->
-    <div class="panel active" id="panel-login">
       <div>
-        <div class="panel-title">Sign In</div>
-        <div class="panel-desc">Use your corporate credentials</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.3px">Sign In</div>
+        <div style="font-size:11px;color:var(--text-muted);font-family:var(--mono);margin-top:5px;line-height:1.5">
+          Enter your corporate email — we'll open the right SSO provider.
+        </div>
       </div>
 
       <form id="form-login" class="field-group" novalidate>
+
         <div class="field">
-          <label for="login-email">Email</label>
-          <input type="email" id="login-email" placeholder="you@popatelier.net"
-                 autocomplete="email" required>
+          <label for="login-email">Corporate Email</label>
+          <input type="email" id="login-email"
+                 placeholder="you@popatelier.net"
+                 autocomplete="email"
+                 inputmode="email"
+                 required>
         </div>
-        <div class="field">
-          <label for="login-pass">Password</label>
-          <input type="password" id="login-pass" placeholder="••••••••"
-                 autocomplete="current-password" required>
+
+        <!-- Inline provider hint — shown once domain is recognised -->
+        <div class="provider-hint" id="provider-hint" aria-live="polite">
+          <span class="provider-icon" id="provider-icon"></span>
+          <span id="provider-hint-text"></span>
         </div>
+
         <div class="err-msg" id="login-err" role="alert"></div>
-        <button type="submit" class="btn-primary" id="login-btn">Sign In</button>
+
+        <button type="submit" class="btn-primary" id="login-btn">
+          <span class="spinner"></span>
+          <span id="btn-label">Continue</span>
+        </button>
+
       </form>
 
-      <div class="toggle-link">
-        New here?
-        <button type="button" onclick="switchToRegister()">Create an account</button>
-      </div>
-    </div>
+      <div class="divider">single sign-on</div>
 
-    <!-- ── REGISTER PANEL (hidden by default) ── -->
-    <div class="panel" id="panel-register">
-      <div>
-        <div class="panel-title">Create Account</div>
-        <div class="panel-desc">Only @popatelier.net or @libertycoke.com</div>
+      <div class="sso-notice">
+        <strong>@popatelier.net</strong> → Google Workspace SSO<br>
+        <strong>@libertycoke.com</strong> → Microsoft 365 SSO<br>
+        <br>
+        A pop-up window will open to complete authentication.
+        Make sure pop-ups are allowed for this site.
       </div>
 
-      <form id="form-register" class="field-group" novalidate>
-        <div class="field">
-          <label for="reg-name">Full name</label>
-          <input type="text" id="reg-name" placeholder="Your full name"
-                 autocomplete="name" required>
-        </div>
-        <div class="field">
-          <label for="reg-email">Corporate email</label>
-          <input type="email" id="reg-email" placeholder="you@popatelier.net"
-                 autocomplete="email" required>
-        </div>
-        <div class="field">
-          <label for="reg-pass">Password</label>
-          <input type="password" id="reg-pass" placeholder="Minimum 8 characters"
-                 autocomplete="new-password" required>
-        </div>
-        <div class="field">
-          <label for="reg-confirm">Confirm password</label>
-          <input type="password" id="reg-confirm" placeholder="Repeat your password"
-                 autocomplete="new-password" required>
-        </div>
-        <div class="err-msg" id="reg-err" role="alert"></div>
-        <button type="submit" class="btn-primary" id="reg-btn">Create Account</button>
-      </form>
-
-      <div class="toggle-link">
-        Already have an account?
-        <button type="button" onclick="switchToLogin()">Sign in</button>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ── VERIFY STATE (replaces the card) ── -->
-  <div class="verify-wrap hidden" id="verify-panel">
-    <div class="verify-inner">
-      <div class="verify-icon">✉️</div>
-      <div class="verify-title">Check your inbox</div>
-      <div class="verify-body">
-        Please check your inbox to verify your account. If you don't see the email, please make sure to check your Spam or Junk folder.
-      </div>
-      <button class="btn-ghost" onclick="switchToLogin()">Back to Sign In</button>
     </div>
   </div>
 
@@ -353,7 +298,7 @@
 
 </div>
 
-<!-- Firebase -->
+<!-- Firebase compat CDN (must load before login.js module) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script type="module" src="login.js"></script>

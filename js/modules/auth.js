@@ -1,27 +1,48 @@
 // ── AUTHENTICATION ─────────────────────────────────────────────────────────────
-// Firebase auth guard, legacy PIN overlay, sign-out, read-only mode.
+// Firebase SSO auth guard, sign-out, read-only mode, and legacy PIN overlay.
 
-import { state }                from './state.js';
-import { CORRECT_PIN, EMAILJS_KEY } from './config.js';
-import { showToast }            from './toast.js';
-import { seedIfEmpty, startListener } from './api.js';
-import { auth }                 from './firebase-config.js';
+import { state }                       from './state.js';
+import { CORRECT_PIN, EMAILJS_KEY }    from './config.js';
+import { showToast }                   from './toast.js';
+import { seedIfEmpty, startListener }  from './api.js';
+import { auth }                        from './firebase-config.js';
+
+// Domains allowed through the app guard — mirrors login.js DOMAIN_MAP.
+const ALLOWED_DOMAINS = ['popatelier.net', 'libertycoke.com'];
+
+function isAllowedDomain(email) {
+  const domain = (email || '').split('@')[1]?.toLowerCase().trim();
+  return ALLOWED_DOMAINS.includes(domain);
+}
 
 // ── FIREBASE AUTH GUARD ───────────────────────────────────────────────────────
 export function initAuthGuard() {
-  auth.onAuthStateChanged(user => {
-    if (!user || !user.emailVerified) {
+  auth.onAuthStateChanged(async user => {
+    // No session → back to login
+    if (!user) {
       window.location.replace('auth/login.html');
       return;
     }
+
+    // Domain guard (defense-in-depth).
+    // Handles the case where a stale session or a manually injected token
+    // belongs to an account outside the allowed domains.
+    if (!isAllowedDomain(user.email)) {
+      await auth.signOut();
+      window.location.replace('auth/login.html');
+      return;
+    }
+
     state.currentUser  = user.displayName || user.email.split('@')[0];
     state.currentEmail = user.email;
 
+    // Dismiss legacy overlays (present in old index.html builds)
     ['login-overlay', 'pin-overlay'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
 
+    // Boot Firestore listener exactly once per session
     if (!state._appBooted) {
       state._appBooted = true;
       seedIfEmpty().then(() => startListener());
@@ -31,10 +52,11 @@ export function initAuthGuard() {
 
 // ── SIGN OUT ──────────────────────────────────────────────────────────────────
 export function handleSignOut() {
-  firebase.auth().signOut();
+  auth.signOut();
+  // onAuthStateChanged fires with null → auto-redirects to login.html
 }
 
-// ── READ-ONLY MODE ────────────────────────────────────────────────────────────
+// ── READ-ONLY GUARD ───────────────────────────────────────────────────────────
 export function guardEdit() {
   if (state.isReadOnly) { showToast('🔒 View only mode'); return false; }
   return true;
@@ -48,31 +70,30 @@ export function enterReadOnly() {
   state.currentUser  = 'Guest';
   state.currentEmail = '';
   state.isReadOnly   = true;
-  document.querySelectorAll('.status-step, [onclick="saveVenueAssignment()"], #loc-capture-btn, label[for="photo-input"], .import-btn, #excel-input')
-    .forEach(el => { if (el) el.style.display = 'none'; });
+  document.querySelectorAll(
+    '.status-step, [onclick="saveVenueAssignment()"], #loc-capture-btn, label[for="photo-input"], .import-btn, #excel-input'
+  ).forEach(el => { if (el) el.style.display = 'none'; });
   showToast('👁 View only mode');
 }
 
-// ── LEGACY PIN OVERLAY (kept for backward compatibility with index.html) ───────
+// ── LEGACY PIN OVERLAY ────────────────────────────────────────────────────────
+// These functions back the PIN pad in index.html. Kept as-is; the overlay
+// itself is instantly hidden by initAuthGuard for SSO users.
+
 export function loginContinue() {
   const nameEl  = document.getElementById('login-name');
   const emailEl = document.getElementById('login-email');
   const errEl   = document.getElementById('login-err');
-
-  const name  = (nameEl  ? nameEl.value  : '').trim();
-  const email = (emailEl ? emailEl.value : '').trim();
-
+  const name    = (nameEl  ? nameEl.value  : '').trim();
+  const email   = (emailEl ? emailEl.value : '').trim();
   if (!name)  { if (errEl) errEl.textContent = 'Please enter your full name.'; return; }
   if (!email || !email.includes('@')) { if (errEl) errEl.textContent = 'Please enter a valid email.'; return; }
-
   state.currentUser  = name;
   state.currentEmail = email;
-
   const lo = document.getElementById('login-overlay');
   const po = document.getElementById('pin-overlay');
   if (lo) lo.style.display = 'none';
   if (po) po.style.display = 'flex';
-
   const sub = document.querySelector('#pin-overlay .pin-sub');
   if (sub) sub.textContent = 'Welcome, ' + name.split(' ')[0] + ' · Enter your PIN';
 }
