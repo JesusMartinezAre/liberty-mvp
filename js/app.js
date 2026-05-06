@@ -287,7 +287,7 @@ let _appBooted = false;
 
 auth.onAuthStateChanged(user => {
   if (!user || !user.emailVerified) {
-    window.location.replace('login.html');
+    window.location.replace('auth/login.html');
     return;
   }
   // Populate identity used throughout the app (Firestore writes, toasts, etc.)
