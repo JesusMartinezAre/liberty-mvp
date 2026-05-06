@@ -1847,17 +1847,17 @@ async function testEmail(){
   showToast('⏳ Enviando email de prueba…');
   try{
     if(typeof emailjs === 'undefined'){
-      showToast('❌ EmailJS no cargó');
+      showToast('❌ EmailJS failed to load');
       return;
     }
     const result = await emailjs.send('service_17309zo', 'template_3em34jk', {
       title: '✅ Test — POPA Liberty App',
       name: 'Test POPA',
       time: new Date().toLocaleString(),
-      message: 'Email de prueba desde Coca-Cola Liberty Digital Display Inventory.',
+      message: 'Test email from Coca-Cola Liberty Digital Display Inventory.',
       email: 'efr@popatelier.net'
     });
-    showToast('✅ Email enviado! Status: ' + result.status);
+    showToast('✅ Email sent! Status: ' + result.status);
   }catch(e){
     showToast('❌ Error: ' + (e.text || e.message || JSON.stringify(e)));
   }
@@ -1865,7 +1865,7 @@ async function testEmail(){
 
 
 function confirmTechModal(){
-  const name = document.getElementById('tech-name-input').value.trim() || 'No especificado';
+  const name = document.getElementById('tech-name-input').value.trim() || 'Not specified';
   document.getElementById('tech-modal').style.display = 'none';
 
   const idx = window._pendingInstallIdx;
@@ -1925,10 +1925,10 @@ function confirmTechModal(){
         let photoHtml = '';
         let photoEmailUrl = '';
         try{
-          showToast('🔍 Buscando foto...');
+          showToast('🔍 Looking for photo...');
           const snap = await db.collection(COLLECTION).doc(unitId)
                                .collection('photos').limit(1).get();
-          showToast('📸 Docs encontrados: ' + snap.size);
+          showToast('📸 Docs found: ' + snap.size);
           if(!snap.empty){
             const rawUrl = snap.docs[0].data().url;
             const smallUrl = rawUrl.replace('/upload/','/upload/w_300,h_300,c_fill,q_40,f_jpg/');
@@ -1948,30 +1948,30 @@ function confirmTechModal(){
             }
             showToast('✅ Foto: ' + photoEmailUrl.substring(0,40));
           } else {
-            showToast('⚠ Sin fotos en Firestore para ' + unitId);
+            showToast('⚠ No photos in Firestore for ' + unitId);
           }
         }catch(e){ showToast('❌ Error foto: ' + e.message); }
 
         const msgBody = `<div style="font-family:Arial,sans-serif;max-width:580px;color:#111">
           <div style="background:#F40009;padding:16px 20px;border-radius:8px 8px 0 0">
-            <h2 style="color:#fff;margin:0;font-size:16px">✅ Unidad Instalada en POS</h2>
+            <h2 style="color:#fff;margin:0;font-size:16px">✅ Unit Installed at POS</h2>
             <p style="color:rgba(255,255,255,.8);margin:4px 0 0;font-size:11px">Coca-Cola Liberty · FIFA World Cup 2026</p>
           </div>
           <div style="background:#f9f9f9;padding:16px 20px;border:1px solid #eee">
             <table style="width:100%;border-collapse:collapse">
               <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888;width:120px">Serial</td><td style="padding:5px 8px;font-size:13px;font-weight:700">${serial}</td></tr>
               <tr style="background:#fff"><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Venue</td><td style="padding:5px 8px;font-size:12px">${venue}</td></tr>
-              <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Zona</td><td style="padding:5px 8px;font-size:12px">${zone}</td></tr>
-              <tr style="background:#fff"><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Sección</td><td style="padding:5px 8px;font-size:12px">${section}</td></tr>
-              <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Ubicación</td><td style="padding:5px 8px;font-size:12px">${location}</td></tr>
-              <tr style="background:#fff"><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Técnico</td><td style="padding:5px 8px;font-size:12px;font-weight:600">${name}</td></tr>
+              <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Zone</td><td style="padding:5px 8px;font-size:12px">${zone}</td></tr>
+              <tr style="background:#fff"><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Section</td><td style="padding:5px 8px;font-size:12px">${section}</td></tr>
+              <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Location</td><td style="padding:5px 8px;font-size:12px">${location}</td></tr>
+              <tr style="background:#fff"><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Technician</td><td style="padding:5px 8px;font-size:12px;font-weight:600">${name}</td></tr>
               <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Hora</td><td style="padding:5px 8px;font-size:12px">${ts}</td></tr>
             </table>
             <div style="background:#e8f5e9;border-radius:6px;padding:10px 14px;margin:12px 0;text-align:center">
-              <span style="font-size:14px;font-weight:700;color:#2e7d32">${installed} / ${total} unidades instaladas</span>
+              <span style="font-size:14px;font-weight:700;color:#2e7d32">${installed} / ${total} units installed</span>
             </div>
             <div style="margin-top:12px">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;letter-spacing:1px">Evidencia fotográfica</div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;letter-spacing:1px">Photo evidence</div>
               ${photoHtml}
             </div>
           </div>
@@ -1991,11 +1991,11 @@ function confirmTechModal(){
           total_installed: String(installed),
           total_units:     String(total),
           photo_html:      photoEmailUrl,
-          title:           '✅ Instalado — ' + serial,
+          title:           '✅ Installed — ' + serial,
           name:            name,
           email:           'efr@popatelier.net'
         }).then(r=>{
-          showToast('📧 Email enviado (' + r.status + ')');
+          showToast('📧 Email sent (' + r.status + ')');
         }).catch(e=>{
           showToast('⚠ Email: ' + (e.text || e.message || 'error'));
         });
@@ -2546,7 +2546,7 @@ function renderActivity(entries){
 
         <!-- Usuario -->
         <div style="font-size:10px;color:var(--text-sub)">
-          👤 ${e.usuario || '<span style="color:var(--text-muted);font-style:italic">Usuario no registrado</span>'}
+          👤 ${e.usuario || '<span style="color:var(--text-muted);font-style:italic">Unregistered user</span>'}
           ${e.correo ? `<span style="color:var(--text-muted)"> · ${e.correo}</span>` : ''}
         </div>
 

@@ -272,66 +272,66 @@
     <!-- ── LOGIN PANEL (default) ── -->
     <div class="panel active" id="panel-login">
       <div>
-        <div class="panel-title">Iniciar Sesión</div>
-        <div class="panel-desc">Usa tus credenciales corporativas</div>
+        <div class="panel-title">Sign In</div>
+        <div class="panel-desc">Use your corporate credentials</div>
       </div>
 
       <form id="form-login" class="field-group" novalidate>
         <div class="field">
           <label for="login-email">Email</label>
-          <input type="email" id="login-email" placeholder="tu@popatelier.net"
+          <input type="email" id="login-email" placeholder="you@popatelier.net"
                  autocomplete="email" required>
         </div>
         <div class="field">
-          <label for="login-pass">Contraseña</label>
+          <label for="login-pass">Password</label>
           <input type="password" id="login-pass" placeholder="••••••••"
                  autocomplete="current-password" required>
         </div>
         <div class="err-msg" id="login-err" role="alert"></div>
-        <button type="submit" class="btn-primary" id="login-btn">Iniciar Sesión</button>
+        <button type="submit" class="btn-primary" id="login-btn">Sign In</button>
       </form>
 
       <div class="toggle-link">
-        ¿Eres nuevo?
-        <button type="button" onclick="switchToRegister()">Regístrate aquí</button>
+        New here?
+        <button type="button" onclick="switchToRegister()">Create an account</button>
       </div>
     </div>
 
     <!-- ── REGISTER PANEL (hidden by default) ── -->
     <div class="panel" id="panel-register">
       <div>
-        <div class="panel-title">Crear Cuenta</div>
-        <div class="panel-desc">Solo @popatelier.net o @liberty.com</div>
+        <div class="panel-title">Create Account</div>
+        <div class="panel-desc">Only @popatelier.net or @liberty.com</div>
       </div>
 
       <form id="form-register" class="field-group" novalidate>
         <div class="field">
-          <label for="reg-name">Nombre completo</label>
-          <input type="text" id="reg-name" placeholder="Tu nombre completo"
+          <label for="reg-name">Full name</label>
+          <input type="text" id="reg-name" placeholder="Your full name"
                  autocomplete="name" required>
         </div>
         <div class="field">
-          <label for="reg-email">Email corporativo</label>
-          <input type="email" id="reg-email" placeholder="tu@popatelier.net"
+          <label for="reg-email">Corporate email</label>
+          <input type="email" id="reg-email" placeholder="you@popatelier.net"
                  autocomplete="email" required>
         </div>
         <div class="field">
-          <label for="reg-pass">Contraseña</label>
-          <input type="password" id="reg-pass" placeholder="Mínimo 8 caracteres"
+          <label for="reg-pass">Password</label>
+          <input type="password" id="reg-pass" placeholder="Minimum 8 characters"
                  autocomplete="new-password" required>
         </div>
         <div class="field">
-          <label for="reg-confirm">Confirmar contraseña</label>
-          <input type="password" id="reg-confirm" placeholder="Repite tu contraseña"
+          <label for="reg-confirm">Confirm password</label>
+          <input type="password" id="reg-confirm" placeholder="Repeat your password"
                  autocomplete="new-password" required>
         </div>
         <div class="err-msg" id="reg-err" role="alert"></div>
-        <button type="submit" class="btn-primary" id="reg-btn">Crear Cuenta</button>
+        <button type="submit" class="btn-primary" id="reg-btn">Create Account</button>
       </form>
 
       <div class="toggle-link">
-        ¿Ya tienes cuenta?
-        <button type="button" onclick="switchToLogin()">Inicia sesión</button>
+        Already have an account?
+        <button type="button" onclick="switchToLogin()">Sign in</button>
       </div>
     </div>
 
@@ -341,16 +341,15 @@
   <div class="verify-wrap hidden" id="verify-panel">
     <div class="verify-inner">
       <div class="verify-icon">✉️</div>
-      <div class="verify-title">Revisa tu correo</div>
+      <div class="verify-title">Check your inbox</div>
       <div class="verify-body">
-        Te enviamos un enlace de verificación a tu email.<br>
-        Haz clic en él para activar tu cuenta y luego inicia sesión.
+        Please check your inbox to verify your account. If you don't see the email, please make sure to check your Spam or Junk folder.
       </div>
-      <button class="btn-ghost" onclick="switchToLogin()">Volver a Iniciar Sesión</button>
+      <button class="btn-ghost" onclick="switchToLogin()">Back to Sign In</button>
     </div>
   </div>
 
-  <div class="footer-note">POP Atelier LLC · popatelier.net · Acceso restringido</div>
+  <div class="footer-note">POP Atelier LLC · popatelier.net · Restricted access</div>
 
 </div>
 

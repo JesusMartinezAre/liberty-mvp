@@ -77,7 +77,7 @@ async function handleRegister(e) {
   if (pass !== confirm) { errEl.textContent = 'Passwords do not match.'; return; }
 
   btn.disabled    = true;
-  btn.textContent = 'Creando cuenta…';
+  btn.textContent = 'Creating account…';
 
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
@@ -89,7 +89,7 @@ async function handleRegister(e) {
     errEl.textContent = authErrMsg(err);
   } finally {
     btn.disabled    = false;
-    btn.textContent = 'Crear Cuenta';
+    btn.textContent = 'Create Account';
   }
 }
 
@@ -107,7 +107,7 @@ async function handleLogin(e) {
   if (!email || !pass) { errEl.textContent = 'Email and password are required.'; return; }
 
   btn.disabled    = true;
-  btn.textContent = 'Iniciando sesión…';
+  btn.textContent = 'Signing in…';
 
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pass);
@@ -118,7 +118,7 @@ async function handleLogin(e) {
     if (!cred.user.emailVerified) {
       await auth.signOut();
       errEl.textContent =
-        'Debes verificar tu email para acceder a la plataforma. Por favor revisa tu bandeja de entrada.';
+        'You must verify your email before accessing the platform. Please check your inbox.';
       return;
     }
 
@@ -127,7 +127,7 @@ async function handleLogin(e) {
     errEl.textContent = authErrMsg(err);
   } finally {
     btn.disabled    = false;
-    btn.textContent = 'Iniciar Sesión';
+    btn.textContent = 'Sign In';
   }
 }
 
