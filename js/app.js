@@ -582,7 +582,6 @@ function renderAll(){
   renderPipeline();
   renderDonut();
   renderList();
-  renderAnalyticsStatus();
   updateVenueProgress();
   updateSidebarCounts();
 }
@@ -712,7 +711,10 @@ window.addEventListener('load',()=>{
 function getFiltered(){
   const q = filterQ.toLowerCase();
   return DATA.filter(d=>{
-    if(filterPlatform!=='all' && d.platform!==filterPlatform) return false;
+    if(filterPlatform!=='all'){
+      const dbPlatform = filterPlatform==='POPA' ? 'Navori' : filterPlatform;
+      if(d.platform!==filterPlatform && d.platform!==dbPlatform) return false;
+    }
     if(filterStatus && d.status!==filterStatus) return false;
     if(filterVenue && d.venue!==filterVenue) return false;
     if(q && ![d.digitalHeader,d.model,d.routerSN,d.simCard,d.location,d.controllerSN]
@@ -750,7 +752,7 @@ function renderList(){
     const sc = statusConfig(d.status);
     return `
     <button class="item" style="animation:fadeUp .25s ${Math.min(i*.015,.25)}s both;width:100%;text-align:left" onclick="openModal('${d.id}')">
-      <div class="item-badge ${d.platform==='Navori'?'POPA':d.platform}">${d.platform==='POPA'?'NAV':'KOS'}</div>
+      <div class="item-badge ${d.platform==='Navori'?'POPA':d.platform}">${(d.platform==='POPA'||d.platform==='Navori')?'POPA':'KOS'}</div>
       <div class="item-body">
         <div class="item-serial">${d.digitalHeader}</div>
         <div class="item-model">${d.model}</div>
@@ -787,7 +789,14 @@ function setStatusFilter(s, el){
   renderList();
 }
 function applyFilters(){ filterQ=document.getElementById('q').value; renderList(); }
-function clearQ(){ document.getElementById('q').value=''; filterQ=''; renderList(); }
+function clearQ(){
+  document.getElementById('q').value='';
+  filterQ='';
+  renderList();
+  const overviewTab = document.querySelector('.tab[onclick*="overview"]');
+  if(overviewTab) showPage('overview', overviewTab);
+  syncSidebar('overview');
+}
 
 // Clear venue filter chip
 function clearVenueFilter(){
@@ -812,7 +821,7 @@ function openModal(id){
 
   document.getElementById('m-title').textContent = d.model;
   const cb = document.getElementById('m-ctrl-badge');
-  cb.textContent = d.controller;
+  cb.textContent = (d.controller==='Navori'||d.platform==='Navori') ? 'POPA' : d.controller;
   cb.className = `modal-ctrl-badge ${d.platform}`;
 
   // Status steps
@@ -837,7 +846,7 @@ function openModal(id){
     el.className='field-val'+(empty?' pending':'');
   };
   document.getElementById('m-dh').textContent = d.digitalHeader;
-  document.getElementById('m-ctrl').textContent = d.controller;
+  document.getElementById('m-ctrl').textContent = (d.controller==='Navori'||d.platform==='Navori') ? 'POPA' : d.controller;
   setF('m-ctrl-sn', d.controllerSN);
   setF('m-router', d.routerSN);
   setF('m-sim', d.simCard);
@@ -2011,25 +2020,6 @@ function cancelTechModal(){
 function closeOverlay(e){ if(e.target===document.getElementById('overlay')) closeModal(); }
 function closeModal(){ document.getElementById('overlay').classList.remove('open'); document.body.style.overflow=''; currentModalId=null; }
 
-// ── ANALYTICS STATUS ────────────────────────────
-function renderAnalyticsStatus(){
-  const counts={};
-  STATUSES.forEach(s=>counts[s.label]=0);
-  DATA.forEach(d=>{ if(counts[d.status]!==undefined) counts[d.status]++; });
-  const total=DATA.length||1;
-  document.getElementById('analytics-status').innerHTML=STATUSES.map(s=>`
-    <div class="bar-row">
-      <div class="bar-top">
-        <span class="bar-name" style="color:${s.color}">${s.label}</span>
-        <span class="bar-ct">${counts[s.label]}</span>
-      </div>
-      <div class="bar-track">
-        <div class="bar-fill" style="width:${counts[s.label]/total*100}%;background:${s.color}"></div>
-      </div>
-    </div>
-  `).join('');
-}
-
 // ── EXPORT CSV ──────────────────────────────────
 function exportExcel(){
   const f = getFiltered();
@@ -2322,7 +2312,7 @@ function kpiFilter(platform, status){
 }
 
 // ── SWIPE BETWEEN TABS ──────────────────────────────────────────────────────
-const PAGE_ORDER = ['overview','inventory','analytics','map'];
+const PAGE_ORDER = ['overview','inventory','map'];
 let touchStartX = 0, touchStartY = 0;
 
 document.addEventListener('touchstart', e=>{

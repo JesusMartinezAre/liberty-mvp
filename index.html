@@ -126,7 +126,6 @@
     <div class="tabs">
       <button class="tab active" onclick="showPage('overview',this)">Overview <span class="cnt" id="tab-total">150</span></button>
       <button class="tab" onclick="showPage('inventory',this)">Inventory <span class="cnt" id="tab-filtered">150</span></button>
-      <button class="tab" onclick="showPage('analytics',this)">Analytics</button>
       <button class="tab" onclick="showPage('map',this)">Map</button>
       <button class="tab" onclick="openActivityLog()" id="tab-activity">🕒 Activity</button>
   </div>
@@ -142,9 +141,6 @@
   <button class="sidebar-nav-btn" id="snav-inventory" onclick="showPage('inventory',this);syncSidebar('inventory')">
     <span class="s-icon">☰</span> Inventory
     <span class="s-cnt" id="s-tab-filtered">150</span>
-  </button>
-  <button class="sidebar-nav-btn" id="snav-analytics" onclick="showPage('analytics',this);syncSidebar('analytics')">
-    <span class="s-icon">📊</span> Analytics
   </button>
   <button class="sidebar-nav-btn" id="snav-map" onclick="showPage('map',this);syncSidebar('map')">
     <span class="s-icon">🗺</span> Map
@@ -287,48 +283,6 @@
     <div class="loading"><div class="spinner"></div>Loading from Firebase…</div>
   </div>
 </div>
-
-<!-- ANALYTICS -->
-<div class="page fade-up" id="page-analytics">
-  <div class="sc">
-    <div class="sc-title">Platform Breakdown</div>
-    <table class="at">
-      <thead><tr><th>Model</th><th>Controller</th><th>Units</th><th>%</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>Digital Header Exterior 29"</td>
-          <td><span class="hm" style="background:var(--navori-dim);color:var(--navori)">POPA</span></td>
-          <td>120</td><td style="color:var(--navori);font-family:var(--mono)">80%</td>
-        </tr>
-        <tr>
-          <td>Digital Header Interior 29"</td>
-          <td><span class="hm" style="background:var(--kos-dim);color:var(--kos)">KOS / Tier One</span></td>
-          <td>30</td><td style="color:var(--kos);font-family:var(--mono)">20%</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="sc">
-    <div class="sc-title">Status Breakdown</div>
-    <div id="analytics-status"><div class="loading"><div class="spinner"></div></div></div>
-  </div>
-  <div class="sc">
-    <div class="sc-title">Serial Ranges</div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div style="background:var(--surface);border:1px solid var(--navori-dim);border-radius:9px;padding:11px 13px">
-        <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--navori);margin-bottom:6px">POPA · Exterior</div>
-        <div style="font-family:var(--mono);font-size:13px">ZIPDHE<span style="color:var(--navori)">0001</span> → <span style="color:var(--navori)">0120</span></div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">120 units consecutive</div>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--kos-dim);border-radius:9px;padding:11px 13px">
-        <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--kos);margin-bottom:6px">KOS · Interior</div>
-        <div style="font-family:var(--mono);font-size:13px">ZIPKDHI<span style="color:var(--kos)">0001</span> → <span style="color:var(--kos)">0030</span></div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">30 units consecutive</div>
-      </div>
-    </div>
-  </div>
-</div>
-
 
 <!-- MAP PAGE -->
 <div class="page fade-up" id="page-map">
