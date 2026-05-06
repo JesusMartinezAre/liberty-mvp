@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   appId:             "1:447099037329:web:c1fc7167d653160cff4130"
 };
 
-const ALLOWED_DOMAINS = ['popatelier.net', 'liberty.com'];
+const ALLOWED_DOMAINS = ['popatelier.net', 'libertycoke.com'];
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
@@ -69,7 +69,7 @@ async function handleRegister(e) {
 
   // Domain restriction — abort before any Firebase call
   if (!isAllowedDomain(email)) {
-    errEl.textContent = 'Unregistered corporate domain. Only @popatelier.net or @liberty.com are allowed.';
+    errEl.textContent = 'Unregistered corporate domain. Only @popatelier.net or @libertycoke.com are allowed.';
     return;
   }
 
