@@ -151,3 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('form-login').addEventListener('submit', handleLogin);
   document.getElementById('form-register').addEventListener('submit', handleRegister);
 });
+
+// Expose for inline onclick="" handlers in login.html
+window.switchToLogin    = switchToLogin;
+window.switchToRegister = switchToRegister;
