@@ -3,55 +3,101 @@
 const { getDb }   = require('./lib/firebaseAdmin');
 const { appJson } = require('./lib/http');
 
+// ── Provider registry ──────────────────────────────────────────────────────
+// Keyed by the exact `iss` claim that will appear in the JWT.
+// To add a new Identity Provider: uncomment its block and set the env vars.
+function buildProviders() {
+  const map = {};
+
+  // ── Okta ──
+  if (process.env.OKTA_ISSUER) {
+    map[process.env.OKTA_ISSUER] = {
+      name:     'okta',
+      jwksUri:  `${process.env.OKTA_ISSUER}/v1/keys`,
+      audience: process.env.OKTA_AUDIENCE || 'api://default',
+    };
+  }
+
+  // ── Microsoft Entra ID (future) ──
+  // if (process.env.ENTRA_ISSUER) {
+  //   map[process.env.ENTRA_ISSUER] = {
+  //     name:     'entra',
+  //     jwksUri:  `${process.env.ENTRA_ISSUER}/discovery/v2.0/keys`,
+  //     audience: process.env.ENTRA_CLIENT_ID,
+  //   };
+  // }
+
+  return map;
+}
+
+const PROVIDERS = buildProviders();
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 function getBearer(event) {
   const header = event.headers.authorization || event.headers.Authorization || '';
   return header.startsWith('Bearer ') ? header.substring(7).trim() : null;
 }
 
+// Decode JWT payload WITHOUT verification — only to read `iss` and select
+// the right verifier. Cryptographic verification always follows.
+function decodeJwtPayload(token) {
+  try {
+    return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+// ── Handler ────────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
   try {
     const token = getBearer(event);
     if (!token) return appJson(401, { error: 'Missing bearer token.' });
 
-    // jose is ESM-only — dynamic import works in both CJS and ESM contexts.
+    // 1. Peek at the issuer (unverified) to select the correct JWKS verifier.
+    const rawPayload = decodeJwtPayload(token);
+    const iss        = rawPayload?.iss || '';
+    const provider   = PROVIDERS[iss];
+
+    if (!provider) {
+      console.error('[me] Unknown or unconfigured issuer:', iss || '(none)');
+      return appJson(401, { error: `Token issuer is not configured on this server.` });
+    }
+
+    console.log(`[me] Provider: ${provider.name} | iss: ${iss}`);
+
+    // 2. Cryptographically verify the token with the provider's JWKS endpoint.
     const { createRemoteJWKSet, jwtVerify } = await import('jose');
+    const JWKS = createRemoteJWKSet(new URL(provider.jwksUri));
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer:   iss,
+      audience: provider.audience,
+    });
 
-    const issuer   = process.env.OKTA_ISSUER;
-    const audience = process.env.OKTA_AUDIENCE || 'api://default';
-    if (!issuer) return appJson(500, { error: 'OKTA_ISSUER env var is not configured.' });
-
-    const JWKS = createRemoteJWKSet(new URL(`${issuer}/v1/keys`));
-    const { payload } = await jwtVerify(token, JWKS, { issuer, audience });
-
-    // Okta access tokens: 'email' / 'preferred_username' carry the address.
-    // 'sub' is the Okta user ID (e.g. 00u...) — used as a fallback.
+    // 3. Extract email. Okta trial orgs often set sub = email address directly.
     const sub   = String(payload.sub || '');
-    // If Okta omits email/preferred_username, treat sub as the email address
-    // (Okta trial orgs often send the email directly in sub).
     const email = String(payload.email || payload.preferred_username || sub).toLowerCase();
 
-    console.log('[me] Claims extraídos del token de Okta:');
+    console.log('[me] Claims extraídos del token:');
     console.log('  payload.email              :', payload.email              || '(vacío)');
     console.log('  payload.preferred_username :', payload.preferred_username  || '(vacío)');
     console.log('  payload.sub                :', sub                        || '(vacío)');
     console.log('  → email resuelto para query:', email                      || '(vacío)');
 
+    // 4. Look up user in Firestore — three fallback strategies.
     const db = getDb();
     let snap;
 
     if (email) {
-      // Attempt 1: match against 'userName' (set to email during SCIM provisioning).
       snap = await db.collection('users').where('userName', '==', email).limit(1).get();
       console.log('[me] Attempt 1 (userName ==', email, ') → docs encontrados:', snap.size);
 
-      // Attempt 2: match directly against the 'email' field.
       if (snap.empty) {
         snap = await db.collection('users').where('email', '==', email).limit(1).get();
         console.log('[me] Attempt 2 (email ==', email, ') → docs encontrados:', snap.size);
       }
     }
 
-    // Attempt 3: match by Okta subject ID stored in oktaExternalId during SCIM POST.
     if ((!snap || snap.empty) && sub) {
       snap = await db.collection('users').where('oktaExternalId', '==', sub).limit(1).get();
       console.log('[me] Attempt 3 (oktaExternalId ==', sub, ') → docs encontrados:', snap.size);

@@ -265,6 +265,12 @@
                  inputmode="email">
         </div>
 
+        <!-- Provider hint — appears once a recognised domain is typed -->
+        <div class="provider-hint" id="provider-hint" aria-live="polite">
+          <span class="provider-icon" id="provider-icon"></span>
+          <span id="provider-hint-text"></span>
+        </div>
+
         <div class="err-msg" id="login-err" role="alert"></div>
 
         <button type="submit" class="btn-primary" id="login-btn">
@@ -277,10 +283,10 @@
       <div class="divider">single sign-on</div>
 
       <div class="sso-notice">
-        <strong>@popatelier.net</strong> → Google Workspace SSO via Okta<br>
-        <strong>@libertycoke.com</strong> → Microsoft 365 SSO via Okta<br>
+        <strong>@popatelier.net</strong> → Google Workspace via Okta<br>
+        <strong>@libertycoke.com</strong> → Microsoft 365 via Okta<br>
         <br>
-        You will be redirected to Okta to complete authentication.
+        You will be redirected to your SSO provider to complete sign-in.
       </div>
 
     </div>
@@ -293,24 +299,80 @@
 <script src="https://global.oktacdn.com/okta-auth-js/7.8.1/okta-auth-js.min.js"></script>
 <script src="/js/oktaConfig.js"></script>
 <script>
-  const oktaAuth = new OktaAuth(window.OKTA_CONFIG);
-  const form     = document.getElementById('form-login');
-  const errEl    = document.getElementById('login-err');
-  const btn      = document.getElementById('login-btn');
+  // ── Domain → Provider routing map ─────────────────────────────────────────
+  // Each entry maps an email domain to a provider key and a display label.
+  // 'okta'  — redirects through the existing Okta OIDC flow (fully operational).
+  // 'entra' — placeholder; wire up when Microsoft Entra is configured.
+  const DOMAIN_ROUTING = {
+    'popatelier.net':  { provider: 'okta',  label: 'Google Workspace via Okta',  iconClass: 'google'    },
+    'libertycoke.com': { provider: 'okta',  label: 'Microsoft 365 via Okta',     iconClass: 'microsoft' },
+    // Future Entra tenant — uncomment and set env vars when ready:
+    // 'partner.com':  { provider: 'entra', label: 'Microsoft Entra SSO',        iconClass: 'microsoft' },
+  };
 
+  function getDomain(email) {
+    return (email.split('@')[1] || '').toLowerCase().trim();
+  }
+
+  function getRoute(email) {
+    return DOMAIN_ROUTING[getDomain(email)] || null;
+  }
+
+  // ── Elements ───────────────────────────────────────────────────────────────
+  const oktaAuth   = new OktaAuth(window.OKTA_CONFIG);
+  const form       = document.getElementById('form-login');
+  const emailInput = document.getElementById('login-email');
+  const errEl      = document.getElementById('login-err');
+  const btn        = document.getElementById('login-btn');
+  const hintEl     = document.getElementById('provider-hint');
+  const iconEl     = document.getElementById('provider-icon');
+  const hintTextEl = document.getElementById('provider-hint-text');
+  const btnLabel   = document.getElementById('btn-label');
+
+  // ── Live provider hint ─────────────────────────────────────────────────────
+  emailInput.addEventListener('input', () => {
+    const route = getRoute(emailInput.value.trim());
+    if (route) {
+      iconEl.className   = `provider-icon ${route.iconClass}`;
+      iconEl.textContent = route.iconClass === 'google' ? 'G' : '';
+      hintTextEl.textContent = `Will sign in via ${route.label}`;
+      hintEl.classList.add('visible');
+      btnLabel.textContent = `Continue with ${route.label}`;
+    } else {
+      hintEl.classList.remove('visible');
+      btnLabel.textContent = 'Continue';
+    }
+  });
+
+  // ── Submit — Home Realm Discovery router ───────────────────────────────────
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errEl.textContent = '';
+
+    const email = emailInput.value.trim();
+    const route = getRoute(email);
+
+    if (!route) {
+      errEl.textContent = 'Domain not authorized. Use your corporate email address.';
+      return;
+    }
+
     btn.classList.add('loading');
     btn.disabled = true;
 
     try {
-      const email = document.getElementById('login-email').value.trim();
-      await oktaAuth.token.getWithRedirect({
-        loginHint: email || undefined,
-      });
+      if (route.provider === 'okta') {
+        await oktaAuth.token.getWithRedirect({ loginHint: email });
+
+      } else if (route.provider === 'entra') {
+        // Placeholder — replace with MSAL redirect when Entra is configured.
+        throw new Error('Microsoft Entra SSO is not yet configured on this server.');
+
+      } else {
+        throw new Error(`Unknown provider: ${route.provider}`);
+      }
     } catch (err) {
-      errEl.textContent = err.message || 'Could not redirect to Okta. Please try again.';
+      errEl.textContent = err.message || 'Could not initiate sign-in. Please try again.';
       btn.classList.remove('loading');
       btn.disabled = false;
     }

@@ -33,11 +33,19 @@ function authenticate(headers) {
     token = raw.trim();
   }
 
+  // 3. Accepted tokens — any configured token grants access.
+  // Add SCIM_AUTH_TOKEN_LIBERTY (or more) in Netlify env vars to allow
+  // a second system to push users without sharing the primary token.
+  const VALID_TOKENS = [
+    process.env.SCIM_AUTH_TOKEN,
+    process.env.SCIM_AUTH_TOKEN_LIBERTY,
+  ].filter(Boolean);
+
   console.log("Token extraído final:", `[${token}]`);
-  console.log("Token esperado (.env):", `[${process.env.SCIM_AUTH_TOKEN}]`);
-  
-  const matches = (token && token === process.env.SCIM_AUTH_TOKEN);
-  console.log("¿Coinciden?:", matches);
+  console.log("Tokens válidos configurados:", VALID_TOKENS.length);
+
+  const matches = token && VALID_TOKENS.some(t => t === token);
+  console.log("¿Coinciden?:", !!matches);
 
   return !!matches;
 }
