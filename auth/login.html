@@ -262,21 +262,14 @@
           <input type="email" id="login-email"
                  placeholder="you@popatelier.net"
                  autocomplete="email"
-                 inputmode="email"
-                 required>
-        </div>
-
-        <!-- Inline provider hint — shown once domain is recognised -->
-        <div class="provider-hint" id="provider-hint" aria-live="polite">
-          <span class="provider-icon" id="provider-icon"></span>
-          <span id="provider-hint-text"></span>
+                 inputmode="email">
         </div>
 
         <div class="err-msg" id="login-err" role="alert"></div>
 
         <button type="submit" class="btn-primary" id="login-btn">
           <span class="spinner"></span>
-          <span id="btn-label">Continue</span>
+          <span id="btn-label">Continue with Okta SSO</span>
         </button>
 
       </form>
@@ -284,11 +277,10 @@
       <div class="divider">single sign-on</div>
 
       <div class="sso-notice">
-        <strong>@popatelier.net</strong> → Google Workspace SSO<br>
-        <strong>@libertycoke.com</strong> → Microsoft 365 SSO<br>
+        <strong>@popatelier.net</strong> → Google Workspace SSO via Okta<br>
+        <strong>@libertycoke.com</strong> → Microsoft 365 SSO via Okta<br>
         <br>
-        A pop-up window will open to complete authentication.
-        Make sure pop-ups are allowed for this site.
+        You will be redirected to Okta to complete authentication.
       </div>
 
     </div>
@@ -298,9 +290,31 @@
 
 </div>
 
-<!-- Firebase compat CDN (must load before login.js module) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script type="module" src="login.js"></script>
+<script src="https://global.oktacdn.com/okta-auth-js/7.8.1/okta-auth-js.min.js"></script>
+<script src="/js/oktaConfig.js"></script>
+<script>
+  const oktaAuth = new OktaAuth(window.OKTA_CONFIG);
+  const form     = document.getElementById('form-login');
+  const errEl    = document.getElementById('login-err');
+  const btn      = document.getElementById('login-btn');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errEl.textContent = '';
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+      const email = document.getElementById('login-email').value.trim();
+      await oktaAuth.token.getWithRedirect({
+        loginHint: email || undefined,
+      });
+    } catch (err) {
+      errEl.textContent = err.message || 'Could not redirect to Okta. Please try again.';
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  });
+</script>
 </body>
 </html>

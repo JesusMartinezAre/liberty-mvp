@@ -6,11 +6,35 @@
 [build.environment]
   NODE_VERSION = "20"
 
+[functions]
+  node_bundler = "esbuild"
+
 # Redirect bare /auth to the login page
 [[redirects]]
   from   = "/auth"
   to     = "/auth/login.html"
   status = 200
+
+# Okta callback shorthand (optional clean URL)
+[[redirects]]
+  from   = "/auth/callback"
+  to     = "/auth/callback.html"
+  status = 200
+
+# Session validation — Okta JWT → Firestore active check
+[[redirects]]
+  from  = "/api/me"
+  to    = "/.netlify/functions/me"
+  status = 200
+  force  = true
+
+# SCIM 2.0 — route all /scim/v2/* traffic to the serverless function.
+# Must sit above the SPA catch-all so Netlify matches it first.
+[[redirects]]
+  from   = "/scim/v2/*"
+  to     = "/.netlify/functions/scim"
+  status = 200
+  force  = true
 
 # SPA-style fallback: unknown paths → index.html
 [[redirects]]

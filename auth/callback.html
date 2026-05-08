@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Signing in… — POPA FIFA Headers</title>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0a0a0c;
+      --text:     #f0f0f2;
+      --text-sub: rgba(240,240,242,0.55);
+      --red:      #F40009;
+      --mono:     'Geist Mono', monospace;
+    }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      -webkit-font-smoothing: antialiased;
+      display: grid;
+      place-items: center;
+    }
+    .state { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid rgba(244,0,9,0.2);
+      border-top-color: var(--red);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .msg { font-size: 13px; color: var(--text-sub); letter-spacing: .3px; }
+    .err-msg { font-size: 12px; color: #ff6b6b; line-height: 1.6; max-width: 360px; }
+    a { color: var(--red); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="state" id="state">
+  <div class="spinner"></div>
+  <p class="msg">Validating your Okta session…</p>
+</div>
+
+<script src="https://global.oktacdn.com/okta-auth-js/7.8.1/okta-auth-js.min.js"></script>
+<script src="/js/oktaConfig.js"></script>
+<script>
+  async function handleCallback() {
+    const oktaAuth = new OktaAuth(window.OKTA_CONFIG);
+
+    if (oktaAuth.isLoginRedirect()) {
+      await oktaAuth.handleLoginRedirect();
+    }
+
+    const accessToken = await oktaAuth.tokenManager.get('accessToken');
+    if (!accessToken) throw new Error('No access token returned by Okta.');
+
+    const res = await fetch('/api/me', {
+      headers: { Authorization: `Bearer ${accessToken.accessToken}` },
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.reason || body.error || `Access denied (${res.status})`);
+    }
+
+    window.location.replace('/index.html');
+  }
+
+  handleCallback().catch(err => {
+    document.getElementById('state').innerHTML = `
+      <p class="err-msg">
+        Access denied: ${err.message}<br><br>
+        <a href="/auth/login.html">← Back to login</a>
+      </p>`;
+  });
+</script>
+
+</body>
+</html>

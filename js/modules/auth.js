@@ -5,55 +5,62 @@ import { state }                       from './state.js';
 import { CORRECT_PIN, EMAILJS_KEY }    from './config.js';
 import { showToast }                   from './toast.js';
 import { seedIfEmpty, startListener }  from './api.js';
-import { auth }                        from './firebase-config.js';
 
-// Domains allowed through the app guard — mirrors login.js DOMAIN_MAP.
-const ALLOWED_DOMAINS = ['popatelier.net', 'libertycoke.com'];
+// Key used by Okta Auth JS SDK's default token manager.
+const OKTA_STORAGE_KEY = 'okta-token-storage';
 
-function isAllowedDomain(email) {
-  const domain = (email || '').split('@')[1]?.toLowerCase().trim();
-  return ALLOWED_DOMAINS.includes(domain);
+function getOktaAccessToken() {
+  try {
+    const raw = localStorage.getItem(OKTA_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw)?.accessToken?.accessToken || null;
+  } catch {
+    return null;
+  }
 }
 
-// ── FIREBASE AUTH GUARD ───────────────────────────────────────────────────────
-export function initAuthGuard() {
-  auth.onAuthStateChanged(async user => {
-    // No session → back to login
-    if (!user) {
-      window.location.replace('/auth/login.html');
-      return;
-    }
+// ── OKTA AUTH GUARD ───────────────────────────────────────────────────────────
+export async function initAuthGuard() {
+  const accessToken = getOktaAccessToken();
 
-    // Domain guard (defense-in-depth).
-    // Handles the case where a stale session or a manually injected token
-    // belongs to an account outside the allowed domains.
-    if (!isAllowedDomain(user.email)) {
-      await auth.signOut();
-      window.location.replace('/auth/login.html');
-      return;
-    }
+  if (!accessToken) {
+    window.location.replace('/auth/login.html');
+    return;
+  }
 
-    state.currentUser  = user.displayName || user.email.split('@')[0];
-    state.currentEmail = user.email;
-
-    // Dismiss legacy overlays (present in old index.html builds)
-    ['login-overlay', 'pin-overlay'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
+  let user;
+  try {
+    const res = await fetch('/api/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
+    if (!res.ok) throw new Error(`/api/me returned ${res.status}`);
+    user = await res.json();
+  } catch {
+    localStorage.removeItem(OKTA_STORAGE_KEY);
+    window.location.replace('/auth/login.html');
+    return;
+  }
 
-    // Boot Firestore listener exactly once per session
-    if (!state._appBooted) {
-      state._appBooted = true;
-      seedIfEmpty().then(() => startListener());
-    }
+  state.currentUser  = user.displayName || user.givenName || user.email?.split('@')[0] || '';
+  state.currentEmail = user.email || '';
+
+  // Dismiss legacy overlays (present in old index.html builds)
+  ['login-overlay', 'pin-overlay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
   });
+
+  // Boot Firestore listener exactly once per session
+  if (!state._appBooted) {
+    state._appBooted = true;
+    seedIfEmpty().then(() => startListener());
+  }
 }
 
 // ── HARD SIGN-OUT ─────────────────────────────────────────────────────────────
 export async function handleSignOut() {
-  // 1. Destroy the Firebase session token — revokes the JWT on the server.
-  await auth.signOut();
+  // 1. Clear the Okta token from localStorage so the auth guard redirects on next load.
+  localStorage.removeItem(OKTA_STORAGE_KEY);
 
   // 2. Wipe in-memory application state. The navigation below will garbage-
   //    collect everything, but clearing explicitly prevents any brief window
