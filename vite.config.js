@@ -5,9 +5,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main:     'index.html',
-        login:    'auth/login.html',
-        callback: 'auth/callback.html',
+        main:         'index.html',
+        login:        'auth/login.html',
+        callback:     'auth/callback.html',
+        samlComplete: 'auth/saml-complete.html',
       },
     },
   },

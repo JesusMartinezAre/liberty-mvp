@@ -4,12 +4,15 @@ const { getDb }   = require('./lib/firebaseAdmin');
 const { appJson } = require('./lib/http');
 
 // ── Provider registry ──────────────────────────────────────────────────────
-// Keyed by the exact `iss` claim that will appear in the JWT.
-// To add a new Identity Provider: uncomment its block and set the env vars.
+// Keyed by the exact `iss` claim in the JWT.
+//
+// Two verification strategies:
+//   jwksUri  — asymmetric RS256/ES256, fetched from IdP's JWKS endpoint (OIDC)
+//   secret   — symmetric HS256, verified with SESSION_JWT_SECRET (SAML sessions)
 function buildProviders() {
   const map = {};
 
-  // ── Okta ──
+  // ── Okta (OIDC) ──
   if (process.env.OKTA_ISSUER) {
     map[process.env.OKTA_ISSUER] = {
       name:     'okta',
@@ -18,10 +21,19 @@ function buildProviders() {
     };
   }
 
-  // ── Microsoft Entra ID (future) ──
+  // ── Local sessions (issued after SAML verification) ──
+  if (process.env.SESSION_JWT_SECRET && process.env.SESSION_JWT_ISSUER) {
+    map[process.env.SESSION_JWT_ISSUER] = {
+      name:     'local',
+      secret:   process.env.SESSION_JWT_SECRET,
+      audience: 'liberty-app',
+    };
+  }
+
+  // ── Microsoft Entra ID via OIDC (future) ──
   // if (process.env.ENTRA_ISSUER) {
   //   map[process.env.ENTRA_ISSUER] = {
-  //     name:     'entra',
+  //     name:     'entra-oidc',
   //     jwksUri:  `${process.env.ENTRA_ISSUER}/discovery/v2.0/keys`,
   //     audience: process.env.ENTRA_CLIENT_ID,
   //   };
@@ -39,7 +51,7 @@ function getBearer(event) {
 }
 
 // Decode JWT payload WITHOUT verification — only to read `iss` and select
-// the right verifier. Cryptographic verification always follows.
+// the correct verifier. Cryptographic verification always follows.
 function decodeJwtPayload(token) {
   try {
     return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
@@ -54,57 +66,86 @@ exports.handler = async (event) => {
     const token = getBearer(event);
     if (!token) return appJson(401, { error: 'Missing bearer token.' });
 
-    // 1. Peek at the issuer (unverified) to select the correct JWKS verifier.
+    // 1. Peek at the issuer (unverified) to select the correct verifier.
     const rawPayload = decodeJwtPayload(token);
     const iss        = rawPayload?.iss || '';
     const provider   = PROVIDERS[iss];
 
     if (!provider) {
       console.error('[me] Unknown or unconfigured issuer:', iss || '(none)');
-      return appJson(401, { error: `Token issuer is not configured on this server.` });
+      return appJson(401, { error: 'Token issuer is not configured on this server.' });
     }
 
     console.log(`[me] Provider: ${provider.name} | iss: ${iss}`);
 
-    // 2. Cryptographically verify the token with the provider's JWKS endpoint.
-    const { createRemoteJWKSet, jwtVerify } = await import('jose');
-    const JWKS = createRemoteJWKSet(new URL(provider.jwksUri));
-    const { payload } = await jwtVerify(token, JWKS, {
-      issuer:   iss,
-      audience: provider.audience,
-    });
+    // 2. Cryptographically verify the token with the appropriate strategy.
+    let payload;
+    const { jwtVerify } = await import('jose');
 
-    // 3. Extract email. Okta trial orgs often set sub = email address directly.
-    const sub   = String(payload.sub || '');
-    const email = String(payload.email || payload.preferred_username || sub).toLowerCase();
+    if (provider.secret) {
+      // Symmetric HS256 — our own SAML-backed session JWTs.
+      const key = new TextEncoder().encode(provider.secret);
+      ({ payload } = await jwtVerify(token, key, {
+        issuer:   iss,
+        audience: provider.audience,
+      }));
+    } else {
+      // Asymmetric JWKS — external OIDC providers (Okta, future Entra OIDC).
+      const { createRemoteJWKSet } = await import('jose');
+      const JWKS = createRemoteJWKSet(new URL(provider.jwksUri));
+      ({ payload } = await jwtVerify(token, JWKS, {
+        issuer:   iss,
+        audience: provider.audience,
+      }));
+    }
 
-    console.log('[me] Claims extraídos del token:');
-    console.log('  payload.email              :', payload.email              || '(vacío)');
-    console.log('  payload.preferred_username :', payload.preferred_username  || '(vacío)');
-    console.log('  payload.sub                :', sub                        || '(vacío)');
-    console.log('  → email resuelto para query:', email                      || '(vacío)');
+    // 3. Extract identity claims.
+    const sub     = String(payload.sub || '');
+    const isLocal = provider.name === 'local';
 
-    // 4. Look up user in Firestore — three fallback strategies.
+    // For local (SAML) tokens, sub is the Firestore doc ID — not an email.
+    // For Okta trial orgs, sub IS the email address.
+    const email = String(
+      payload.email ||
+      payload.preferred_username ||
+      (!isLocal ? sub : '')
+    ).toLowerCase();
+
+    console.log('[me] Claims:');
+    console.log('  payload.email              :', payload.email              || '(empty)');
+    console.log('  payload.preferred_username :', payload.preferred_username  || '(empty)');
+    console.log('  payload.sub                :', sub                        || '(empty)');
+    console.log('  → resolved email           :', email                      || '(empty)');
+
+    // 4. Look up user in Firestore — multiple fallback strategies.
     const db = getDb();
     let snap;
 
     if (email) {
       snap = await db.collection('users').where('userName', '==', email).limit(1).get();
-      console.log('[me] Attempt 1 (userName ==', email, ') → docs encontrados:', snap.size);
+      console.log('[me] Attempt 1 (userName ==', email, ') → docs found:', snap.size);
 
       if (snap.empty) {
         snap = await db.collection('users').where('email', '==', email).limit(1).get();
-        console.log('[me] Attempt 2 (email ==', email, ') → docs encontrados:', snap.size);
+        console.log('[me] Attempt 2 (email ==', email, ') → docs found:', snap.size);
       }
     }
 
-    if ((!snap || snap.empty) && sub) {
-      snap = await db.collection('users').where('oktaExternalId', '==', sub).limit(1).get();
-      console.log('[me] Attempt 3 (oktaExternalId ==', sub, ') → docs encontrados:', snap.size);
+    if (!snap || snap.empty) {
+      if (isLocal && sub) {
+        // Local sessions carry the Firestore doc ID in sub — direct O(1) lookup.
+        const docSnap = await db.collection('users').doc(sub).get();
+        console.log('[me] Attempt 3 (doc id ==', sub, ') → exists:', docSnap.exists);
+        if (docSnap.exists) snap = { empty: false, size: 1, docs: [docSnap] };
+      } else if (sub) {
+        // OIDC: sub may be the IdP's external user ID.
+        snap = await db.collection('users').where('oktaExternalId', '==', sub).limit(1).get();
+        console.log('[me] Attempt 3 (oktaExternalId ==', sub, ') → docs found:', snap?.size);
+      }
     }
 
     if (!snap || snap.empty) {
-      console.log('[me] 403 — ningún query encontró al usuario en Firestore.');
+      console.log('[me] 403 — user not found in Firestore.');
       return appJson(403, { active: false, reason: 'User not provisioned in Firestore.' });
     }
 

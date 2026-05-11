@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Signing in…</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      background: #0a0a0c;
+      font-family: system-ui, sans-serif;
+    }
+    .spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.10);
+      border-top-color: #F40009;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var token  = params.get('t');
+
+      // ── Scrub the token from the URL bar and browser history immediately.
+      // The user must never be able to copy a URL with a live bearer token.
+      history.replaceState(null, '', window.location.pathname);
+
+      if (!token) {
+        window.location.replace('/auth/login.html?error=no_token');
+        return;
+      }
+
+      try {
+        localStorage.setItem('app-session', token);
+      } catch (_) {
+        // Storage is blocked (e.g. private browsing with strict settings).
+        window.location.replace('/auth/login.html?error=storage_denied');
+        return;
+      }
+
+      window.location.replace('/index.html');
+    })();
+  </script>
+</body>
+</html>

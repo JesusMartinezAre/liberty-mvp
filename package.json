@@ -12,6 +12,7 @@
     "vite": "^8.0.10"
   },
   "dependencies": {
+    "@node-saml/node-saml": "^5.1.0",
     "firebase-admin": "^13.8.0",
     "jose": "^6.2.3"
   }

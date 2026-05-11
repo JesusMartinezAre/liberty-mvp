@@ -283,10 +283,11 @@
       <div class="divider">single sign-on</div>
 
       <div class="sso-notice">
-        <strong>@popatelier.net</strong> → Google Workspace via Okta<br>
-        <strong>@libertycoke.com</strong> → Microsoft 365 via Okta<br>
+        <strong>@popatelier.net</strong> → Google Workspace · OIDC via Okta<br>
+        <strong>@libertycoke.com</strong> → Microsoft Entra ID · SAML 2.0<br>
+        <strong>@popatelier.onmicrosoft.com</strong> → Microsoft Entra ID · SAML 2.0<br>
         <br>
-        You will be redirected to your SSO provider to complete sign-in.
+        You will be redirected to your identity provider to complete sign-in.
       </div>
 
     </div>
@@ -300,14 +301,14 @@
 <script src="/js/oktaConfig.js"></script>
 <script>
   // ── Domain → Provider routing map ─────────────────────────────────────────
-  // Each entry maps an email domain to a provider key and a display label.
-  // 'okta'  — redirects through the existing Okta OIDC flow (fully operational).
-  // 'entra' — placeholder; wire up when Microsoft Entra is configured.
+  // 'okta'  — OIDC via Okta (popatelier.net / Google Workspace)
+  // 'saml'  — SAML 2.0 via Microsoft Entra ID (libertycoke.com and variants)
   const DOMAIN_ROUTING = {
-    'popatelier.net':  { provider: 'okta',  label: 'Google Workspace via Okta',  iconClass: 'google'    },
-    'libertycoke.com': { provider: 'okta',  label: 'Microsoft 365 via Okta',     iconClass: 'microsoft' },
-    // Future Entra tenant — uncomment and set env vars when ready:
-    // 'partner.com':  { provider: 'entra', label: 'Microsoft Entra SSO',        iconClass: 'microsoft' },
+    'popatelier.net':          { provider: 'okta',  label: 'Google Workspace via Okta', iconClass: 'google'    },
+    'libertycoke.com':         { provider: 'saml',  label: 'Microsoft Entra ID',        iconClass: 'microsoft' },
+    'popatelier.onmicrosoft.com': { provider: 'saml',  label: 'Microsoft Entra ID',     iconClass: 'microsoft' },
+    // Add additional Liberty domains here as needed:
+    // 'liberty.com':          { provider: 'saml',  label: 'Microsoft Entra ID',        iconClass: 'microsoft' },
   };
 
   function getDomain(email) {
@@ -337,12 +338,30 @@
       iconEl.textContent = route.iconClass === 'google' ? 'G' : '';
       hintTextEl.textContent = `Will sign in via ${route.label}`;
       hintEl.classList.add('visible');
-      btnLabel.textContent = `Continue with ${route.label}`;
+      const verb = route.provider === 'saml' ? 'Continue with' : 'Continue with';
+      btnLabel.textContent = `${verb} ${route.label}`;
     } else {
       hintEl.classList.remove('visible');
       btnLabel.textContent = 'Continue';
     }
   });
+
+  // ── Error param — shown when SAML callback redirects back with ?error= ───────
+  const urlError = new URLSearchParams(window.location.search).get('error');
+  if (urlError) {
+    const errorMessages = {
+      saml_failed:          'Sign-in failed. Please try again.',
+      saml_invalid:         'SAML response could not be verified.',
+      saml_no_email:        'Your identity provider did not share an email address.',
+      account_inactive:     'Your account has been deactivated. Contact your administrator.',
+      saml_not_configured:  'SAML SSO is not yet configured on this server.',
+      no_token:             'Sign-in session was lost. Please try again.',
+      storage_denied:       'Browser storage is blocked. Enable cookies and try again.',
+    };
+    errEl.textContent = errorMessages[urlError] || 'An error occurred during sign-in.';
+    // Remove the error param from the URL so a refresh doesn't re-display it.
+    history.replaceState(null, '', window.location.pathname);
+  }
 
   // ── Submit — Home Realm Discovery router ───────────────────────────────────
   form.addEventListener('submit', async (e) => {
@@ -362,11 +381,21 @@
 
     try {
       if (route.provider === 'okta') {
+        // OIDC flow — Okta handles the redirect and callback.html processes the response.
         await oktaAuth.token.getWithRedirect({ loginHint: email });
 
-      } else if (route.provider === 'entra') {
-        // Placeholder — replace with MSAL redirect when Entra is configured.
-        throw new Error('Microsoft Entra SSO is not yet configured on this server.');
+      } else if (route.provider === 'saml') {
+        // SAML flow — ask the backend to build a signed AuthnRequest and return
+        // the full IdP redirect URL; we then navigate the browser there.
+        const res = await fetch(
+          `/api/auth/saml/initiate?email=${encodeURIComponent(email)}`
+        );
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `Server error ${res.status}`);
+        }
+        const { redirectUrl } = await res.json();
+        window.location.href = redirectUrl;
 
       } else {
         throw new Error(`Unknown provider: ${route.provider}`);

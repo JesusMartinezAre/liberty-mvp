@@ -21,10 +21,31 @@
   to     = "/auth/callback.html"
   status = 200
 
-# Session validation — Okta JWT → Firestore active check
+# Session validation — bearer token → Firestore active check
 [[redirects]]
   from  = "/api/me"
   to    = "/.netlify/functions/me"
+  status = 200
+  force  = true
+
+# SAML — initiate AuthnRequest (GET)
+[[redirects]]
+  from   = "/api/auth/saml/initiate"
+  to     = "/.netlify/functions/saml-initiate"
+  status = 200
+  force  = true
+
+# SAML — Assertion Consumer Service / callback (POST from Entra ID)
+[[redirects]]
+  from   = "/api/auth/saml/callback"
+  to     = "/.netlify/functions/saml-callback"
+  status = 200
+  force  = true
+
+# SAML — SP metadata XML (upload this to Azure AD portal)
+[[redirects]]
+  from   = "/api/auth/saml/metadata"
+  to     = "/.netlify/functions/saml-metadata"
   status = 200
   force  = true
 

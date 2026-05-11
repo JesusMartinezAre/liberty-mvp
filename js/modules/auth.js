@@ -1,15 +1,22 @@
 // ── AUTHENTICATION ─────────────────────────────────────────────────────────────
-// Firebase SSO auth guard, sign-out, read-only mode, and legacy PIN overlay.
+// Okta SSO auth guard, sign-out, read-only mode.
 
 import { state }                       from './state.js';
-import { CORRECT_PIN, EMAILJS_KEY }    from './config.js';
+import { EMAILJS_KEY }                 from './config.js';
 import { showToast }                   from './toast.js';
 import { seedIfEmpty, startListener }  from './api.js';
 
-// Key used by Okta Auth JS SDK's default token manager.
+// ── Session token reader ──────────────────────────────────────────────────────
+// Checks the SAML-backed session first (stored by saml-complete.html), then
+// falls back to the Okta SDK token for the OIDC path. Both are bearer tokens
+// accepted by /api/me with no changes to the Authorization header logic.
 const OKTA_STORAGE_KEY = 'okta-token-storage';
+const APP_SESSION_KEY  = 'app-session';
 
-function getOktaAccessToken() {
+function getSessionToken() {
+  const appSession = localStorage.getItem(APP_SESSION_KEY);
+  if (appSession) return appSession;
+
   try {
     const raw = localStorage.getItem(OKTA_STORAGE_KEY);
     if (!raw) return null;
@@ -19,11 +26,11 @@ function getOktaAccessToken() {
   }
 }
 
-// ── OKTA AUTH GUARD ───────────────────────────────────────────────────────────
+// ── AUTH GUARD ────────────────────────────────────────────────────────────────
 export async function initAuthGuard() {
-  const accessToken = getOktaAccessToken();
+  const token = getSessionToken();
 
-  if (!accessToken) {
+  if (!token) {
     window.location.replace('/auth/login.html');
     return;
   }
@@ -31,12 +38,13 @@ export async function initAuthGuard() {
   let user;
   try {
     const res = await fetch('/api/me', {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error(`/api/me returned ${res.status}`);
     user = await res.json();
   } catch {
     localStorage.removeItem(OKTA_STORAGE_KEY);
+    localStorage.removeItem(APP_SESSION_KEY);
     window.location.replace('/auth/login.html');
     return;
   }
@@ -44,13 +52,10 @@ export async function initAuthGuard() {
   state.currentUser  = user.displayName || user.givenName || user.email?.split('@')[0] || '';
   state.currentEmail = user.email || '';
 
-  // Dismiss legacy overlays (present in old index.html builds)
-  ['login-overlay', 'pin-overlay'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
+  // Hide the auth loading screen now that we have a confirmed session.
+  document.getElementById('auth-loading')?.classList.add('hidden');
 
-  // Boot Firestore listener exactly once per session
+  // Boot Firestore listener exactly once per session.
   if (!state._appBooted) {
     state._appBooted = true;
     seedIfEmpty().then(() => startListener());
@@ -59,12 +64,10 @@ export async function initAuthGuard() {
 
 // ── HARD SIGN-OUT ─────────────────────────────────────────────────────────────
 export async function handleSignOut() {
-  // 1. Clear the Okta token from localStorage so the auth guard redirects on next load.
+  // Clear all session tokens regardless of which IdP was used.
   localStorage.removeItem(OKTA_STORAGE_KEY);
+  localStorage.removeItem(APP_SESSION_KEY);
 
-  // 2. Wipe in-memory application state. The navigation below will garbage-
-  //    collect everything, but clearing explicitly prevents any brief window
-  //    where a script could still read user data after the token is gone.
   state.DATA                   = [];
   state.currentUser            = '';
   state.currentEmail           = '';
@@ -82,8 +85,7 @@ export async function handleSignOut() {
   state.importRows             = [];
   state.fieldMode              = false;
 
-  // 3. Replace (not push) the current history entry so the Back button
-  //    cannot return to the authenticated dashboard.
+  // Replace (not push) so the Back button cannot return to the dashboard.
   window.location.replace('/auth/login.html');
 }
 
@@ -94,10 +96,6 @@ export function guardEdit() {
 }
 
 export function enterReadOnly() {
-  ['login-overlay', 'pin-overlay'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
   state.currentUser  = 'Guest';
   state.currentEmail = '';
   state.isReadOnly   = true;
@@ -105,64 +103,6 @@ export function enterReadOnly() {
     '.status-step, [onclick="saveVenueAssignment()"], #loc-capture-btn, label[for="photo-input"], .import-btn, #excel-input'
   ).forEach(el => { if (el) el.style.display = 'none'; });
   showToast('👁 View only mode');
-}
-
-// ── LEGACY PIN OVERLAY ────────────────────────────────────────────────────────
-// These functions back the PIN pad in index.html. Kept as-is; the overlay
-// itself is instantly hidden by initAuthGuard for SSO users.
-
-export function loginContinue() {
-  const nameEl  = document.getElementById('login-name');
-  const emailEl = document.getElementById('login-email');
-  const errEl   = document.getElementById('login-err');
-  const name    = (nameEl  ? nameEl.value  : '').trim();
-  const email   = (emailEl ? emailEl.value : '').trim();
-  if (!name)  { if (errEl) errEl.textContent = 'Please enter your full name.'; return; }
-  if (!email || !email.includes('@')) { if (errEl) errEl.textContent = 'Please enter a valid email.'; return; }
-  state.currentUser  = name;
-  state.currentEmail = email;
-  const lo = document.getElementById('login-overlay');
-  const po = document.getElementById('pin-overlay');
-  if (lo) lo.style.display = 'none';
-  if (po) po.style.display = 'flex';
-  const sub = document.querySelector('#pin-overlay .pin-sub');
-  if (sub) sub.textContent = 'Welcome, ' + name.split(' ')[0] + ' · Enter your PIN';
-}
-
-export function pinKey(k) {
-  if (state.pinEntry.length >= 4) return;
-  state.pinEntry += k;
-  updatePinDots();
-  if (state.pinEntry.length === 4) setTimeout(checkPin, 120);
-}
-
-export function pinDel() {
-  state.pinEntry = state.pinEntry.slice(0, -1);
-  updatePinDots();
-}
-
-export function updatePinDots(err = false) {
-  for (let i = 0; i < 4; i++) {
-    const d = document.getElementById('pd' + i);
-    if (!d) continue;
-    d.classList.toggle('filled', i < state.pinEntry.length && !err);
-    d.classList.toggle('error',  err && i < state.pinEntry.length);
-  }
-}
-
-export function checkPin() {
-  if (state.pinEntry === CORRECT_PIN) {
-    const po = document.getElementById('pin-overlay');
-    if (po) { po.style.transition = 'opacity .4s'; po.style.opacity = '0'; }
-    setTimeout(() => { if (po) po.style.display = 'none'; }, 400);
-    state.isReadOnly = false;
-    setTimeout(() => showToast('✅ Welcome, ' + (state.currentUser.split(' ')[0] || '!')), 450);
-  } else {
-    updatePinDots(true);
-    const msg = document.getElementById('pin-msg');
-    if (msg) msg.textContent = 'Incorrect PIN';
-    setTimeout(() => { state.pinEntry = ''; updatePinDots(); if (msg) msg.textContent = ''; }, 900);
-  }
 }
 
 // ── EMAILJS INIT ──────────────────────────────────────────────────────────────

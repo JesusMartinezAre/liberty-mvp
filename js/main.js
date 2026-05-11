@@ -33,7 +33,7 @@ import { triggerImport, handleExcelFile, confirmImport,
 import { openActivityLog, loadActivityLog, filterActivity }          from './modules/activity.js';
 
 import { initAuthGuard, handleSignOut, guardEdit, enterReadOnly,
-         loginContinue, pinKey, pinDel, checkPin, initEmailJS }      from './modules/auth.js';
+         initEmailJS }                                               from './modules/auth.js';
 
 // ── EXPOSE WINDOW FUNCTIONS (required by inline onclick="" attributes) ─────────
 window.openModal           = openModal;
@@ -85,22 +85,18 @@ window.filterActivity      = filterActivity;
 
 window.guardEdit           = guardEdit;
 window.enterReadOnly       = enterReadOnly;
-window.loginContinue       = loginContinue;
-window.pinKey              = pinKey;
-window.pinDel              = pinDel;
-window.checkPin            = checkPin;
 window.handleSignOut       = handleSignOut;
 
 window.showToast           = showToast;
 
 // ── BOOT ───────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initEmailJS();
-  initAuthGuard();
+  await initAuthGuard();
   checkDesktop();
   updateOnlineStatus();
 
-  // Logout buttons — disable + show feedback while await auth.signOut() completes
+  // Logout buttons — disable + show feedback while handleSignOut() completes.
   ['logout-btn', 'logout-btn-sidebar'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -109,12 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
       el.textContent = 'Signing out…';
       await handleSignOut();
     });
-  });
-
-  // Legacy login overlay enter-key wiring
-  ['login-name', 'login-email'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') loginContinue(); });
   });
 });
 
