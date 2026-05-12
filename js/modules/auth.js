@@ -35,6 +35,14 @@ export async function initAuthGuard() {
     return;
   }
 
+  // Token exists — hide legacy overlays immediately so they never flash.
+  // We do this before the /api/me round-trip to avoid any visible delay.
+  const loginOverlay = document.getElementById('login-overlay');
+  const pinOverlay   = document.getElementById('pin-overlay');
+  if (loginOverlay) loginOverlay.style.display = 'none';
+  if (pinOverlay)   pinOverlay.style.display   = 'none';
+  document.getElementById('auth-loading')?.classList.add('hidden');
+
   let user;
   try {
     const res = await fetch('/api/me', {
@@ -51,9 +59,6 @@ export async function initAuthGuard() {
 
   state.currentUser  = user.displayName || user.givenName || user.email?.split('@')[0] || '';
   state.currentEmail = user.email || '';
-
-  // Hide the auth loading screen now that we have a confirmed session.
-  document.getElementById('auth-loading')?.classList.add('hidden');
 
   // Boot Firestore listener exactly once per session.
   if (!state._appBooted) {
