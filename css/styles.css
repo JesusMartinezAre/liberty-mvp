@@ -775,3 +775,7 @@ body.field-mode .item-serial { font-size:15px !important; }
 body.field-mode .item-status { font-size:11px !important; }
 body.field-mode .modal-section-title:not(.keep) + .fields .field:not(.keep) { display:none; }
 body.field-mode #loc-field, body.field-mode #m-section, body.field-mode .keep { display:block !important; }
+
+/* ── LEGACY OVERLAY SUPPRESSION — Step A safety net ──────────── */
+/* Force-hide before JS runs. Removed together with the HTML in Step C. */
+#login-overlay, #pin-overlay { display: none !important; }
