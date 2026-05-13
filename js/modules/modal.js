@@ -9,6 +9,23 @@ import { safeUpdate }                               from './api.js';
 import { renderAll, statusConfig }                  from './render.js';
 import { getVenues }                                from './dataService.js';
 
+// ── PENDING ACTION DISPATCHER ─────────────────────────────────────────────────
+// Holds the deferred action type and its captured payload so the tech modal
+// can confirm any write operation — not just installations.
+let _pendingAction  = null;   // 'install' | 'venue' | 'notes'
+let _pendingPayload = null;
+
+function _openTechModal(action, subtitle, btnLabel, payload = null) {
+  const d = state.DATA.find(x => x.id === state.currentModalId);
+  const existing = d?.technician && d.technician !== '—' ? d.technician : (state.currentUser || '');
+  document.getElementById('tech-name-input').value         = existing;
+  document.getElementById('tech-modal-subtitle').textContent = subtitle;
+  document.getElementById('tech-confirm-btn').textContent  = btnLabel;
+  _pendingAction  = action;
+  _pendingPayload = payload;
+  document.getElementById('tech-modal').style.display = 'flex';
+}
+
 // ── VENUE DROPDOWN ────────────────────────────────────────────────────────────
 function populateVenueDropdown() {
   const sel = document.getElementById('m-venue-sel');
@@ -76,9 +93,7 @@ export function openModal(id) {
   document.getElementById('m-bottler').textContent = d.bottler;
   setF('m-technician', d.technician);
   setF('m-content',    d.content);
-  const notesEl = document.getElementById('m-notes');
-  notesEl.textContent = d.notes || '—';
-  notesEl.className   = 'field-val' + (!d.notes ? ' pending' : '');
+  document.getElementById('m-notes').value = d.notes || '';
 
   populateVenueDropdown();
   const venueSel = document.getElementById('m-venue-sel');
@@ -130,9 +145,7 @@ export function setInstalled(installed) {
   if ((d.installed === true) === installed) return;
 
   if (installed) {
-    const existing = d.technician && d.technician !== '—' ? d.technician : (state.currentUser || '');
-    document.getElementById('tech-name-input').value = existing;
-    document.getElementById('tech-modal').style.display = 'flex';
+    _openTechModal('install', 'Installation confirmation', '✓ Confirm Installation');
   } else {
     if (!confirm('Mark this unit as Not Installed?')) return;
     _confirmInstall(false, null);
@@ -201,57 +214,91 @@ export function confirmTechModal() {
   const name = document.getElementById('tech-name-input').value.trim() || 'Not specified';
   document.getElementById('tech-modal').style.display = 'none';
   if (!state.currentModalId) return;
-  _confirmInstall(true, name);
+
+  const action  = _pendingAction;
+  const payload = _pendingPayload;
+  _pendingAction = _pendingPayload = null;
+
+  if (action === 'install') { _confirmInstall(true, name); return; }
+  if (action === 'venue')   { _confirmVenue(name, payload); return; }
+  if (action === 'notes')   { _confirmNotes(name, payload); return; }
 }
 
 export function cancelTechModal() {
   document.getElementById('tech-modal').style.display = 'none';
+  _pendingAction = _pendingPayload = null;
 }
 
 // ── VENUE / ZONE ASSIGNMENT ───────────────────────────────────────────────────
-export async function saveVenueAssignment() {
+export function saveVenueAssignment() {
+  if (state.isReadOnly) { showToast('🔒 View only mode'); return; }
   if (!state.currentModalId) { showToast('No unit selected'); return; }
   const venue = document.getElementById('m-venue-sel').value;
   const zone  = document.getElementById('m-zone-sel').value.trim();
 
+  if (!venue) {
+    _openTechModal('venue', 'Remove venue assignment', '✓ Confirm Removal', { unassign: true });
+  } else {
+    _openTechModal('venue', 'Venue assignment', '✓ Save Assignment', { venue, zone });
+  }
+}
+
+async function _confirmVenue(technician, payload) {
   const btn = document.querySelector('[onclick="saveVenueAssignment()"]');
   if (btn) { btn.textContent = '⏳ Saving…'; btn.disabled = true; }
 
-  const updatedBy      = state.currentUser  || 'Unknown';
-  const updatedByEmail = state.currentEmail || '';
-  const FieldValue     = firebase.firestore.FieldValue;
-
-  if (!venue) {
-    try {
-      await safeUpdate(state.currentModalId, {
-        venue:         FieldValue.delete(),
-        zone:          FieldValue.delete(),
-        updatedBy,
-        updatedByEmail,
-      });
-      showToast('✓ Removed from venue · ' + updatedBy);
-      const d = state.DATA.find(x => x.id === state.currentModalId);
-      if (d) { d.venue = '—'; d.zone = '—'; }
-      if (btn) { btn.textContent = '📍 Save Location Assignment'; btn.disabled = false; }
-    } catch (e) {
-      showToast('⚠ Could not save: ' + e.message);
-      if (btn) { btn.textContent = '📍 Save Location Assignment'; btn.disabled = false; }
-    }
-    return;
-  }
+  const base     = { technician, updatedBy: state.currentUser || 'Unknown', updatedByEmail: state.currentEmail || '' };
+  const FieldValue = firebase.firestore.FieldValue;
 
   try {
-    await safeUpdate(state.currentModalId, { venue, zone, updatedBy, updatedByEmail });
-    const venueName = getVenues().find(v => v.id === venue)?.name?.split('—')[0].trim() || venue;
-    showToast('✓ ' + venueName + (zone ? ' · ' + zone : ''));
-    const d = state.DATA.find(x => x.id === state.currentModalId);
-    if (d) { d.venue = venue; d.zone = zone; }
-    if (btn) { btn.textContent = '📍 Save Location Assignment'; btn.disabled = false; }
+    if (payload.unassign) {
+      await safeUpdate(state.currentModalId, { ...base, venue: FieldValue.delete(), zone: FieldValue.delete() });
+      showToast('✓ Removed from venue · ' + technician);
+      const d = state.DATA.find(x => x.id === state.currentModalId);
+      if (d) { d.venue = '—'; d.zone = '—'; d.technician = technician; }
+    } else {
+      const { venue, zone } = payload;
+      await safeUpdate(state.currentModalId, { ...base, venue, zone });
+      const venueName = getVenues().find(v => v.id === venue)?.name?.split('—')[0].trim() || venue;
+      showToast('✓ ' + venueName + (zone ? ' · ' + zone : ''));
+      const d = state.DATA.find(x => x.id === state.currentModalId);
+      if (d) { d.venue = venue; d.zone = zone; d.technician = technician; }
+    }
   } catch (e) {
     showToast('⚠ Could not save: ' + e.message);
     console.error(e);
-    if (btn) { btn.textContent = '📍 Save Location Assignment'; btn.disabled = false; }
   }
+
+  if (btn) { btn.textContent = '📍 Save Location Assignment'; btn.disabled = false; }
+}
+
+export function saveNotes() {
+  if (state.isReadOnly) { showToast('🔒 View only mode'); return; }
+  if (!state.currentModalId) return;
+  const notes = document.getElementById('m-notes').value.trim();
+  _openTechModal('notes', 'Notes update', '💾 Save Notes', { notes });
+}
+
+async function _confirmNotes(technician, { notes }) {
+  const btn = document.querySelector('[onclick="saveNotes()"]');
+  if (btn) { btn.textContent = '⏳ Saving…'; btn.disabled = true; }
+
+  const d = state.DATA.find(x => x.id === state.currentModalId);
+  if (d) { d.notes = notes; d.technician = technician; }
+
+  try {
+    await safeUpdate(state.currentModalId, {
+      notes, technician,
+      updatedBy:      state.currentUser  || 'Unknown',
+      updatedByEmail: state.currentEmail || '',
+    });
+    showToast('✓ Notes saved');
+  } catch (e) {
+    showToast('⚠ Could not save notes');
+    console.error(e);
+  }
+
+  if (btn) { btn.textContent = '💾 Save Notes'; btn.disabled = false; }
 }
 
 // ── GPS LOCATION ──────────────────────────────────────────────────────────────

@@ -458,7 +458,18 @@
       </div>
       <div class="field span2">
         <div class="field-lbl">Notes</div>
-        <div class="field-val" id="m-notes" style="font-size:11px;line-height:1.4;white-space:pre-wrap"></div>
+        <textarea id="m-notes" rows="3" placeholder="Add technician notes…"
+          style="width:100%;background:var(--surface);border:1px solid var(--border);
+                 border-radius:7px;padding:8px 10px;font-family:var(--mono);font-size:11px;
+                 color:var(--text);resize:vertical;line-height:1.4;
+                 box-sizing:border-box;outline:none;white-space:pre-wrap"></textarea>
+        <button onclick="saveNotes()" style="
+          width:100%;padding:9px;margin-top:6px;
+          background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);
+          border-radius:8px;font-family:var(--sans);font-size:11px;font-weight:700;
+          letter-spacing:.5px;color:var(--navori);cursor:pointer">
+          💾 Save Notes
+        </button>
       </div>
     </div>
     <!-- hidden status val for JS -->
@@ -527,7 +538,7 @@
     border:1px solid var(--border);
   ">
     <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Technician name</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px">Installation confirmation</div>
+    <div id="tech-modal-subtitle" style="font-size:11px;color:var(--text-muted);margin-bottom:14px">Installation confirmation</div>
     <input id="tech-name-input" type="text" placeholder="e.g. Eduardo Flores"
       style="width:100%;padding:10px 12px;border-radius:8px;
       background:var(--surface);border:1px solid var(--border);
@@ -541,7 +552,7 @@
         color:var(--text-muted);cursor:pointer">
         Cancel
       </button>
-      <button onclick="confirmTechModal()" style="
+      <button id="tech-confirm-btn" onclick="confirmTechModal()" style="
         flex:2;padding:10px;border-radius:8px;
         background:var(--red);border:none;
         font-family:var(--sans);font-size:12px;font-weight:700;
