@@ -2,12 +2,22 @@
 // All unit detail modal logic: open/close, status, photos, location, venue assignment.
 
 import { state }                                    from './state.js';
-import { VENUES, ZONE_OPTIONS,
-         COLLECTION, CLOUDINARY_PRESET, CLOUDINARY_UPLOAD_URL,
+import { COLLECTION, CLOUDINARY_PRESET, CLOUDINARY_UPLOAD_URL,
          EMAILJS_SERVICE, EMAILJS_TEMPLATE, NOTIFY_EMAIL } from './config.js';
 import { showToast }                                from './toast.js';
 import { safeUpdate }                               from './api.js';
 import { renderAll, statusConfig }                  from './render.js';
+import { getVenues }                                from './dataService.js';
+
+// ── VENUE DROPDOWN ────────────────────────────────────────────────────────────
+function populateVenueDropdown() {
+  const sel = document.getElementById('m-venue-sel');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Select venue —</option>' +
+    getVenues().map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+  if (current) sel.value = current;
+}
 
 // ── OPEN / CLOSE ──────────────────────────────────────────────────────────────
 export function openModal(id) {
@@ -72,6 +82,7 @@ export function openModal(id) {
   notesEl.textContent = d.notes || '—';
   notesEl.className   = 'field-val' + (!d.notes ? ' pending' : '');
 
+  populateVenueDropdown();
   const venueSel = document.getElementById('m-venue-sel');
   const zoneSel  = document.getElementById('m-zone-sel');
   venueSel.value = (d.venue && d.venue !== '—') ? d.venue : '';
@@ -203,15 +214,16 @@ export function cancelTechModal() {
 
 // ── VENUE / ZONE ASSIGNMENT ───────────────────────────────────────────────────
 export function updateZoneOptions() {
-  const venue   = document.getElementById('m-venue-sel').value;
+  const venueId = document.getElementById('m-venue-sel').value;
   const zoneSel = document.getElementById('m-zone-sel');
-  if (!venue) {
+  if (!venueId) {
     zoneSel.innerHTML = '<option value="">— Select venue first —</option>';
     return;
   }
-  const opts = ZONE_OPTIONS[venue] || [];
+  const venueDoc = getVenues().find(v => v.id === venueId);
+  const areas    = venueDoc?.areas || [];
   zoneSel.innerHTML = '<option value="">— Select zone —</option>' +
-    opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+    areas.map(a => `<option value="${a.id}">${a.label}</option>`).join('');
 }
 
 export async function saveVenueAssignment() {
@@ -252,7 +264,7 @@ export async function saveVenueAssignment() {
   try {
     const resolvedZone = section || zone;
     await safeUpdate(state.currentModalId, { venue, zone: resolvedZone, updatedBy, updatedByEmail });
-    const venueName = VENUES[venue]?.name?.split('—')[0].trim() || venue;
+    const venueName = getVenues().find(v => v.id === venue)?.name?.split('—')[0].trim() || venue;
     showToast('✓ ' + venueName + ' · ' + resolvedZone);
     const d = state.DATA.find(x => x.id === state.currentModalId);
     if (d) { d.venue = venue; d.zone = resolvedZone; }

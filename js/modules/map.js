@@ -2,7 +2,7 @@
 // Renders the interactive SVG map, venue switcher, area list, and unassigned list.
 
 import { state }             from './state.js';
-import { VENUES }            from './config.js';
+import { getVenues }         from './dataService.js';
 import { showToast }         from './toast.js';
 import { openModal }         from './modal.js';
 
@@ -10,7 +10,7 @@ export function setVenue(v, el) {
   state.currentVenue = v;
   document.querySelectorAll('.venue-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  document.getElementById('map-venue-title').textContent = VENUES[v].name;
+  document.getElementById('map-venue-title').textContent = getVenues().find(x => x.id === v)?.name || v;
   const mapImg = document.getElementById('map-base-img');
   if (mapImg) {
     let b64;
@@ -23,14 +23,14 @@ export function setVenue(v, el) {
 }
 
 export function renderStadiumMap() {
-  const venue = VENUES[state.currentVenue];
+  const venue = getVenues().find(v => v.id === state.currentVenue);
   const svg   = document.getElementById('stadium-svg');
 
   const assignments = {};
   state.DATA.forEach(d => {
-    if (d.venueArea && d.venue === state.currentVenue) {
-      if (!assignments[d.venueArea]) assignments[d.venueArea] = [];
-      assignments[d.venueArea].push(d);
+    if (d.zone && d.zone !== '—' && d.venue === state.currentVenue) {
+      if (!assignments[d.zone]) assignments[d.zone] = [];
+      assignments[d.zone].push(d);
     }
   });
 
@@ -137,7 +137,7 @@ export function renderStadiumMap() {
   }
 
   // Unassigned units for this venue
-  const unassigned = state.DATA.filter(d => d.venue === state.currentVenue && (!d.venueArea || d.venueArea === '—'));
+  const unassigned = state.DATA.filter(d => d.venue === state.currentVenue && (!d.zone || d.zone === '—'));
   const unassignedSection = document.getElementById('unassigned-section');
   if (unassigned.length === 0) {
     if (unassignedSection) unassignedSection.style.display = 'none';

@@ -2,7 +2,8 @@
 // Loads and renders the full cross-unit change history from Firestore.
 
 import { state }      from './state.js';
-import { COLLECTION, VENUES, TIPO } from './config.js';
+import { COLLECTION, TIPO } from './config.js';
+import { getVenues }        from './dataService.js';
 import { showToast }  from './toast.js';
 
 export function toSpanish(text) { return text || ''; }
@@ -51,7 +52,7 @@ export async function loadActivityLog() {
 
       if (d.updatedBy && d.updatedAt) {
         const tsMs      = d.updatedAt?.toMillis ? d.updatedAt.toMillis() : 0;
-        const nombreSede = d.venue ? (VENUES[d.venue]?.name?.split('—')[0].trim() || d.venue) : null;
+        const nombreSede = d.venue ? (getVenues().find(v => v.id === d.venue)?.name?.split('—')[0].trim() || d.venue) : null;
         entries.push({
           ts:      tsMs,
           serial, model,

@@ -59,15 +59,8 @@ function adapt(player, venue, evidence) {
     installed:     player.installed     === true,
 
     // ── Venue JOIN ─────────────────────────────────────────────────────────
-    // Normalize to the slug used by dropdown options / filter logic.
-    // Matches on venue.name keywords so GUIDs or alternate doc IDs still work.
-    venue:         (() => {
-      const n = (venue?.name || '').toLowerCase();
-      if (n.includes('metlife')     || player.venueId === 'metlife')     return 'metlife';
-      if (n.includes('lincoln')     || player.venueId === 'lincoln')     return 'lincoln';
-      if (n.includes('rockefeller') || player.venueId === 'rockefeller') return 'rockefeller';
-      return player.venueId || '—';
-    })(),
+    venue:         player.venueId        || '—',
+    venueName:     venue?.name           || '—',
     location:      venue?.location      || player.location || '—',
     section:       venue?.section       || player.section  || '—',
 
@@ -176,4 +169,12 @@ export function subscribeToInventory(callback) {
     _players  = {};
     _evidence = {};
   };
+}
+
+/**
+ * Returns a sorted snapshot of all venues currently in the in-memory cache.
+ * Safe to call at any time — returns [] before the first snapshot arrives.
+ */
+export function getVenues() {
+  return Object.values(_venues).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 }
