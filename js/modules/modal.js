@@ -423,17 +423,42 @@ export async function uploadPhoto(e) {
     if (!res.ok) throw new Error('Upload failed');
     const data = await res.json();
 
-    await state.db.collection(COLLECTION).doc(state.currentModalId).collection('photos').add({
+    const photo = {
       url:        data.secure_url,
       publicId:   data.public_id,
       width:      data.width,
       height:     data.height,
       bytes:      data.bytes,
-      uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      uploadedAt: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
       unit:       state.currentModalId,
-    });
+    };
+
+    const db         = state.db;
+    const FieldValue = firebase.firestore.FieldValue;
+    const evSnap     = await db.collection('evidence_players')
+      .where('playerId', '==', state.currentModalId)
+      .limit(1)
+      .get();
+
+    if (!evSnap.empty) {
+      await evSnap.docs[0].ref.update({ photos: FieldValue.arrayUnion(photo) });
+    } else {
+      await db.collection('evidence_players').add({
+        playerId:      state.currentModalId,
+        photos:        [photo],
+        notes:         '',
+        changeHistory: [],
+      });
+    }
+
+    // Optimistically update state.DATA so the grid reflects the new photo immediately,
+    // before the Firestore real-time listener has a chance to re-emit.
+    const d = state.DATA.find(x => x.id === state.currentModalId);
+    if (d) {
+      d.photos = [...(d.photos || []), photo];
+      _renderPhotos(d.photos);
+    }
     showToast('✓ Photo uploaded');
-    _renderPhotos(state.DATA.find(x => x.id === state.currentModalId)?.photos || []);
   } catch (err) {
     showToast('⚠ Upload failed');
     console.error(err);
@@ -475,7 +500,7 @@ function _renderPhotos(photos) {
       ? p.uploadedAt.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
       : (typeof p.uploadedAt === 'string' ? p.uploadedAt : '');
     return `
-      <div onclick="openLightbox('${url}','${p.id || ''}','${ts}')" style="
+      <div onclick="openLightbox('${url}','${p.publicId || ''}','${ts}')" style="
         aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;
         background:var(--surface);border:1px solid var(--border);position:relative">
         <img src="${thumb}" style="width:100%;height:100%;object-fit:cover"
@@ -488,8 +513,8 @@ function _renderPhotos(photos) {
   }).join('');
 }
 
-export function openLightbox(url, photoDocId, info) {
-  state.currentLightboxPhotoId = photoDocId;
+export function openLightbox(url, photoPublicId, info) {
+  state.currentLightboxPhotoId = photoPublicId;
   document.getElementById('lightbox-img').src = url;
   document.getElementById('lightbox-info').textContent = info;
   document.getElementById('lightbox').style.display = 'flex';
@@ -508,10 +533,24 @@ export async function deletePhoto(e) {
   if (!state.currentLightboxPhotoId || !state.currentModalId) return;
   if (!confirm('Delete this photo?')) return;
   try {
-    await state.db.collection(COLLECTION).doc(state.currentModalId)
-      .collection('photos').doc(state.currentLightboxPhotoId).delete();
+    const db     = state.db;
+    const evSnap = await db.collection('evidence_players')
+      .where('playerId', '==', state.currentModalId)
+      .limit(1)
+      .get();
+
+    if (!evSnap.empty) {
+      const evDoc   = evSnap.docs[0];
+      const updated = (evDoc.data().photos || []).filter(p => p.publicId !== state.currentLightboxPhotoId);
+      await evDoc.ref.update({ photos: updated });
+    }
+
+    // Optimistically update state.DATA so the grid clears the deleted photo immediately.
+    const d = state.DATA.find(x => x.id === state.currentModalId);
+    if (d) d.photos = (d.photos || []).filter(p => p.publicId !== state.currentLightboxPhotoId);
+
     closeLightbox();
-    _renderPhotos(state.DATA.find(x => x.id === state.currentModalId)?.photos || []);
+    _renderPhotos(d?.photos || []);
     showToast('✓ Photo deleted');
   } catch (err) { showToast('⚠ Could not delete'); console.error(err); }
 }
