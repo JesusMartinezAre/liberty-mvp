@@ -6,36 +6,14 @@ import { getVenues }         from './dataService.js';
 import { showToast }         from './toast.js';
 import { openModal }         from './modal.js';
 
-export function setVenue(v, el) {
-  state.currentVenue = v;
-  document.querySelectorAll('.venue-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('map-venue-title').textContent = getVenues().find(x => x.id === v)?.name || v;
-  const mapImg = document.getElementById('map-base-img');
-  if (mapImg) {
-    let b64;
-    if (v === 'lincoln')      b64 = window.LINCOLN_B64;
-    else if (v === 'rockefeller') b64 = window.ROCKEFELLER_B64;
-    else                      b64 = window.METLIFE_B64;
-    mapImg.src = 'data:image/jpeg;base64,' + b64;
-  }
-  renderStadiumMap();
-}
-
-export function renderStadiumMap() {
-  const venue = getVenues().find(v => v.id === state.currentVenue);
-  const svg   = document.getElementById('stadium-svg');
-
-  const assignments = {};
-  state.DATA.forEach(d => {
-    if (d.zone && d.zone !== '—' && d.venue === state.currentVenue) {
-      if (!assignments[d.zone]) assignments[d.zone] = [];
-      assignments[d.zone].push(d);
-    }
-  });
-
-  const AREA_PINS = {
-    metlife: {
+// ── VENUE CONFIGURATION ───────────────────────────────────────────────────────
+// Single source of truth for each venue's seating chart image, SVG pin
+// coordinates, and Areas & Units list.
+// To swap a stadium image: update the imageUrl line — no other changes needed.
+const VENUE_CONFIG = {
+  metlife: {
+    imageUrl: '/assets/maps/metlife.jpg',
+    pins: {
       '100-north': { x:525, y:193, label:'100s North' },
       '100-south': { x:525, y:423, label:'100s South' },
       '100-east':  { x:645, y:308, label:'100s East'  },
@@ -49,7 +27,25 @@ export function renderStadiumMap() {
       '300-east':  { x:748, y:308, label:'300s East'  },
       '300-west':  { x:302, y:308, label:'300s West'  },
     },
-    lincoln: {
+    areas: [
+      { id:'100-north', label:'100s North', sub:'Lower Bowl — North End',  color:'#3b82f6', slots:10 },
+      { id:'100-south', label:'100s South', sub:'Lower Bowl — South End',  color:'#3b82f6', slots:10 },
+      { id:'100-east',  label:'100s East',  sub:'Lower Bowl — East Side',  color:'#8b5cf6', slots:8  },
+      { id:'100-west',  label:'100s West',  sub:'Lower Bowl — West Side',  color:'#8b5cf6', slots:8  },
+      { id:'200-north', label:'200s North', sub:'Club Level — North',      color:'#f59e0b', slots:6  },
+      { id:'200-south', label:'200s South', sub:'Club Level — South',      color:'#f59e0b', slots:6  },
+      { id:'200-east',  label:'200s East',  sub:'Club Level — East',       color:'#22c55e', slots:5  },
+      { id:'200-west',  label:'200s West',  sub:'Club Level — West',       color:'#22c55e', slots:5  },
+      { id:'300-north', label:'300s North', sub:'Upper Bowl — North',      color:'#ef4444', slots:4  },
+      { id:'300-south', label:'300s South', sub:'Upper Bowl — South',      color:'#ef4444', slots:4  },
+      { id:'300-east',  label:'300s East',  sub:'Upper Bowl — East',       color:'#ec4899', slots:3  },
+      { id:'300-west',  label:'300s West',  sub:'Upper Bowl — West',       color:'#ec4899', slots:3  },
+    ],
+  },
+
+  lincoln: {
+    imageUrl: '/assets/maps/lincoln.jpg',
+    pins: {
       '100-north': { x:490, y:188, label:'100s North' },
       '100-south': { x:490, y:420, label:'100s South' },
       '100-east':  { x:620, y:308, label:'100s East'  },
@@ -63,25 +59,86 @@ export function renderStadiumMap() {
       '300-east':  { x:712, y:308, label:'300s East'  },
       '300-west':  { x:268, y:308, label:'300s West'  },
     },
-    rockefeller: {
-      'plaza-main':       { x:295, y:415, label:'Main Plaza'      },
-      'plaza-north':      { x:295, y:265, label:'North Plaza'     },
-      'plaza-south':      { x:295, y:560, label:'South Plaza'     },
-      'concourse':        { x:430, y:480, label:'Concourse Level' },
-      'rink-level':       { x:230, y:485, label:'Rink Level'      },
-      'channel-gardens':  { x:620, y:415, label:'Channel Gardens' },
-      'top-rock':         { x:280, y:360, label:'Top of the Rock' },
+    areas: [
+      { id:'100-north', label:'100s North', sub:'Lower Bowl — North End',  color:'#3b82f6', slots:10 },
+      { id:'100-south', label:'100s South', sub:'Lower Bowl — South End',  color:'#3b82f6', slots:10 },
+      { id:'100-east',  label:'100s East',  sub:'Lower Bowl — East Side',  color:'#8b5cf6', slots:8  },
+      { id:'100-west',  label:'100s West',  sub:'Lower Bowl — West Side',  color:'#8b5cf6', slots:8  },
+      { id:'200-north', label:'200s North', sub:'Club Level — North',      color:'#f59e0b', slots:6  },
+      { id:'200-south', label:'200s South', sub:'Club Level — South',      color:'#f59e0b', slots:6  },
+      { id:'200-east',  label:'200s East',  sub:'Club Level — East',       color:'#22c55e', slots:5  },
+      { id:'200-west',  label:'200s West',  sub:'Club Level — West',       color:'#22c55e', slots:5  },
+      { id:'300-north', label:'300s North', sub:'Upper Bowl — North',      color:'#ef4444', slots:4  },
+      { id:'300-south', label:'300s South', sub:'Upper Bowl — South',      color:'#ef4444', slots:4  },
+      { id:'300-east',  label:'300s East',  sub:'Upper Bowl — East',       color:'#ec4899', slots:3  },
+      { id:'300-west',  label:'300s West',  sub:'Upper Bowl — West',       color:'#ec4899', slots:3  },
+    ],
+  },
+
+  rockefeller: {
+    imageUrl: '/assets/maps/rockefeller.jpg',
+    pins: {
+      'plaza-main':      { x:295, y:415, label:'Main Plaza'       },
+      'plaza-north':     { x:295, y:265, label:'North Plaza'      },
+      'plaza-south':     { x:295, y:560, label:'South Plaza'      },
+      'concourse':       { x:430, y:480, label:'Concourse Level'  },
+      'rink-level':      { x:230, y:485, label:'Rink Level'       },
+      'channel-gardens': { x:620, y:415, label:'Channel Gardens'  },
+      'top-rock':        { x:280, y:360, label:'Top of the Rock'  },
     },
-  };
+    areas: [
+      { id:'plaza-main',      label:'Main Plaza',      sub:'Ground Level — Center',   color:'#3b82f6', slots:8 },
+      { id:'plaza-north',     label:'North Plaza',     sub:'Ground Level — North',    color:'#8b5cf6', slots:6 },
+      { id:'plaza-south',     label:'South Plaza',     sub:'Ground Level — South',    color:'#f59e0b', slots:6 },
+      { id:'concourse',       label:'Concourse Level', sub:'Interior — Concourse',    color:'#22c55e', slots:5 },
+      { id:'rink-level',      label:'Rink Level',      sub:'Ice Rink — Ground Floor', color:'#ef4444', slots:4 },
+      { id:'channel-gardens', label:'Channel Gardens', sub:'Outdoor — East Approach', color:'#ec4899', slots:4 },
+      { id:'top-rock',        label:'Top of the Rock', sub:'Observation Deck Level',  color:'#14b8a6', slots:3 },
+    ],
+  },
+};
 
-  const pinMap    = AREA_PINS[state.currentVenue] || AREA_PINS.metlife;
+// ── VENUE SWITCHER ────────────────────────────────────────────────────────────
+export function setVenue(v, el) {
+  state.currentVenue = v;
+  document.querySelectorAll('.venue-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('map-venue-title').textContent =
+    getVenues().find(x => x.id === v)?.name || v;
+
+  const mapImg = document.getElementById('map-base-img');
+  if (mapImg) {
+    const cfg  = VENUE_CONFIG[v] || VENUE_CONFIG.metlife;
+    mapImg.src = cfg.imageUrl;
+  }
+
+  renderStadiumMap();
+}
+
+// ── MAP RENDERER ──────────────────────────────────────────────────────────────
+export function renderStadiumMap() {
+  const cfg = VENUE_CONFIG[state.currentVenue] || VENUE_CONFIG.metlife;
+  const svg = document.getElementById('stadium-svg');
+  if (!svg) return;
+
+  // Build zone → units map for the current venue
+  const assignments = {};
+  state.DATA.forEach(d => {
+    if (d.zone && d.zone !== '—' && d.venue === state.currentVenue) {
+      if (!assignments[d.zone]) assignments[d.zone] = [];
+      assignments[d.zone].push(d);
+    }
+  });
+
+  // ── SVG pins ────────────────────────────────────────────────────────────────
   const PIN_COLOR = '#F40009';
-
   let pins = '';
-  Object.entries(pinMap).forEach(([areaId, pos]) => {
-    const units  = assignments[areaId] || [];
-    const count  = units.length;
-    const cx = pos.x, cy = pos.y;
+
+  Object.entries(cfg.pins).forEach(([areaId, pos]) => {
+    const units = assignments[areaId] || [];
+    const count = units.length;
+    const cx    = pos.x;
+    const cy    = pos.y;
 
     if (count > 0) {
       const tipY = cy + 26;
@@ -111,10 +168,12 @@ export function renderStadiumMap() {
 
   svg.innerHTML = pins;
 
-  // Area list
+  // ── Areas & Units list ───────────────────────────────────────────────────────
   const areaListEl  = document.getElementById('map-area-list');
-  const areas       = venue.areas;
-  const activeAreas = areas.filter(area => (assignments[area.id] || []).length > 0);
+  if (!areaListEl) return;
+
+  const activeAreas = cfg.areas.filter(area => (assignments[area.id] || []).length > 0);
+
   if (activeAreas.length === 0) {
     areaListEl.innerHTML = '<div style="padding:20px 0;text-align:center;font-size:12px;color:var(--text-muted);font-family:var(--mono)">No areas assigned yet</div>';
   } else {
@@ -136,8 +195,8 @@ export function renderStadiumMap() {
     }).join('');
   }
 
-  // Unassigned units for this venue
-  const unassigned = state.DATA.filter(d => d.venue === state.currentVenue && (!d.zone || d.zone === '—'));
+  // ── Unassigned units for this venue ─────────────────────────────────────────
+  const unassigned        = state.DATA.filter(d => d.venue === state.currentVenue && (!d.zone || d.zone === '—'));
   const unassignedSection = document.getElementById('unassigned-section');
   if (unassigned.length === 0) {
     if (unassignedSection) unassignedSection.style.display = 'none';
@@ -148,7 +207,9 @@ export function renderStadiumMap() {
       unassigned.slice(0, 40).map(d =>
         `<button class="map-unit-chip" onclick="openModal('${d.id}')">${d.digitalHeader}</button>`
       ).join('') +
-      (unassigned.length > 40 ? `<div style="font-size:10px;color:var(--text-muted);padding:4px">+${unassigned.length - 40} more</div>` : '');
+      (unassigned.length > 40
+        ? `<div style="font-size:10px;color:var(--text-muted);padding:4px">+${unassigned.length - 40} more</div>`
+        : '');
   }
 }
 
