@@ -1,10 +1,11 @@
 // ── FIRESTORE DATA LAYER ───────────────────────────────────────────────────────
 // All Firestore reads, writes, and offline queue management.
 
-import { state }                from './state.js';
-import { COLLECTION, OFFLINE_KEY } from './config.js';
-import { showToast }            from './toast.js';
-import { renderAll }            from './render.js';
+import { state }                    from './state.js';
+import { COLLECTION, OFFLINE_KEY }   from './config.js';
+import { showToast }                 from './toast.js';
+import { renderAll }                 from './render.js';
+import { subscribeToInventory }      from './dataService.js';
 
 // ── BASE DATA ─────────────────────────────────────────────────────────────────
 export function buildBaseData() {
@@ -96,18 +97,13 @@ export async function seedIfEmpty() {
 }
 
 // ── REAL-TIME LISTENER ────────────────────────────────────────────────────────
+// Delegates to dataService.subscribeToInventory which joins players + venues +
+// evidence_players and adapts the result to the legacy flat shape state.DATA
+// expects. Returns the unsubscribe handle (call on sign-out if needed).
 export function startListener() {
-  state.db.collection(COLLECTION).onSnapshot(snap => {
-    state.DATA = snap.docs.map(d => {
-      const data = { id: d.id, ...d.data() };
-      if (data.status === 'Installed at POS') data.status = 'Installed at Venue';
-      return data;
-    });
-    state.DATA.sort((a, b) => a.digitalHeader.localeCompare(b.digitalHeader));
+  return subscribeToInventory(items => {
+    state.DATA = items;
     renderAll();
-  }, err => {
-    console.error(err);
-    showToast('⚠ Firebase error');
   });
 }
 
