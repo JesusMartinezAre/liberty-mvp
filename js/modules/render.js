@@ -58,6 +58,10 @@ export function renderKPIs() {
   if (pb)  pb.style.width  = pct + '%';
   if (pt)  pt.textContent  = text;
   if (pts) pts.textContent = text;
+  const cnPopa = document.getElementById('cn-popa');
+  const cnKos  = document.getElementById('cn-kos');
+  if (cnPopa) cnPopa.textContent = popa;
+  if (cnKos)  cnKos.textContent  = kos;
 }
 
 // ── PIPELINE ──────────────────────────────────────────────────────────────────

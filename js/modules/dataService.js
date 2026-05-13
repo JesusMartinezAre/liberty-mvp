@@ -46,12 +46,10 @@ function adapt(player, venue, evidence) {
     // ── Hardware ───────────────────────────────────────────────────────────
     model:         platform,
     platform:      platform,
-    controller:    player.controller    || '—',
-    controllerSN:  player.controllerSN  || '—',
-    routerSN:      player.routerSN      || '—',
-    simCard:       player.simCard       || '—',
-    ipAddress:     player.ipAddress     || '—',
-    macAddress:    player.macAddress    || '—',
+    controller:    platform,
+    controllerSN:  player.serialNumber  || '—',
+    routerSN:      player.router_sn     || '—',
+    simCard:       player.sim           || '—',
     bottler:       player.bottler       || 'Coca-Cola Liberty',
 
     // ── Deployment ─────────────────────────────────────────────────────────

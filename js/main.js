@@ -18,7 +18,7 @@ import { showPage, syncSidebar, checkDesktop, updateOnlineStatus }   from './mod
 
 import { renderStadiumMap, setVenue, openAssignModal }               from './modules/map.js';
 
-import { openModal, closeModal, closeOverlay, loadChangelog,
+import { openModal, closeModal, closeOverlay,
          setInstalled, confirmTechModal, cancelTechModal,
          updateZoneOptions, saveVenueAssignment,
          captureLocation, clearLocation,

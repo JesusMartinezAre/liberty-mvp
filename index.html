@@ -252,8 +252,8 @@
 
   <div class="filter-row">
     <button class="chip active" id="cf-all" onclick="setPlatform('all',this)">All <span class="chip-n" id="cn-all">150</span></button>
-    <button class="chip f-navori" id="cf-nav" onclick="setPlatform('POPA',this)">POPA <span class="chip-n">120</span></button>
-    <button class="chip f-kos" id="cf-kos" onclick="setPlatform('KOS',this)">KOS <span class="chip-n">30</span></button>
+    <button class="chip f-navori" id="cf-nav" onclick="setPlatform('POPA',this)">POPA <span class="chip-n" id="cn-popa">—</span></button>
+    <button class="chip f-kos" id="cf-kos" onclick="setPlatform('KOS',this)">KOS <span class="chip-n" id="cn-kos">—</span></button>
   </div>
 
   <div class="status-filters" id="status-filters">
@@ -425,14 +425,6 @@
       <div class="field">
         <div class="field-lbl">SIM Card</div>
         <div class="field-val" id="m-sim"></div>
-      </div>
-      <div class="field">
-        <div class="field-lbl">IP Address</div>
-        <div class="field-val" id="m-ip"></div>
-      </div>
-      <div class="field">
-        <div class="field-lbl">MAC Address</div>
-        <div class="field-val" id="m-mac"></div>
       </div>
     </div>
 

@@ -17,7 +17,7 @@ export function openModal(id) {
 
   document.getElementById('m-title').textContent = d.model;
   const cb = document.getElementById('m-ctrl-badge');
-  cb.textContent = (d.controller === 'Navori' || d.platform === 'Navori') ? 'POPA' : d.controller;
+  cb.textContent = d.controller;
   cb.className = `modal-ctrl-badge ${d.platform}`;
 
   const isInstalled = d.installed === true;
@@ -35,7 +35,7 @@ export function openModal(id) {
     el.className   = 'field-val' + (empty ? ' pending' : '');
   };
   document.getElementById('m-dh').textContent   = d.digitalHeader;
-  document.getElementById('m-ctrl').textContent = (d.controller === 'Navori' || d.platform === 'Navori') ? 'POPA' : d.controller;
+  document.getElementById('m-ctrl').textContent = d.controller;
   setF('m-ctrl-sn',    d.controllerSN);
   setF('m-router',     d.routerSN);
   setF('m-sim',        d.simCard);
@@ -64,10 +64,8 @@ export function openModal(id) {
   }
 
   document.getElementById('m-bottler').textContent = d.bottler;
-  setF('m-section',    d.section);
+  setF('m-section',    d.zone);
   setF('m-technician', d.technician);
-  setF('m-ip',         d.ipAddress);
-  setF('m-mac',        d.macAddress);
   setF('m-content',    d.content);
   const notesEl = document.getElementById('m-notes');
   notesEl.textContent = d.notes || '—';
@@ -75,7 +73,7 @@ export function openModal(id) {
 
   const venueSel = document.getElementById('m-venue-sel');
   const zoneSel  = document.getElementById('m-zone-sel');
-  venueSel.value = d.venue || '';
+  venueSel.value = (d.venue && d.venue !== '—') ? d.venue : '';
   updateZoneOptions();
   setTimeout(() => { if (d.venueArea) zoneSel.value = d.venueArea; }, 50);
 
@@ -85,9 +83,8 @@ export function openModal(id) {
 
   document.getElementById('overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
-  document.getElementById('photo-grid').innerHTML = '<div style="grid-column:span 3;text-align:center;padding:16px"><div class="spinner" style="display:inline-block"></div></div>';
-  loadPhotos(id);
-  loadChangelog(id);
+  _renderPhotos(d.photos);
+  _renderChangelog(d.changeHistory);
 }
 
 export function closeModal() {
@@ -101,26 +98,18 @@ export function closeOverlay(e) {
 }
 
 // ── CHANGELOG ─────────────────────────────────────────────────────────────────
-export async function loadChangelog(unitId) {
+function _renderChangelog(entries) {
   const el = document.getElementById('m-changelog');
   if (!el) return;
-  try {
-    const snap = await state.db.collection(COLLECTION).doc(unitId).get();
-    const data = snap.data() || {};
-    const logs = Object.entries(data)
-      .filter(([k]) => k.startsWith('log_'))
-      .sort(([a], [b]) => b.localeCompare(a))
-      .slice(0, 8);
-    if (!logs.length) {
-      el.innerHTML = '<div style="color:var(--text-muted);font-size:10px;font-family:var(--mono);padding:4px 0">No history yet</div>';
-      return;
-    }
-    el.innerHTML = logs.map(([, v]) => `
-      <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
-        <div style="width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:5px"></div>
-        <div style="font-size:10px;font-family:var(--mono);color:var(--text-sub);line-height:1.4">${v}</div>
-      </div>`).join('');
-  } catch (e) { el.innerHTML = ''; }
+  if (!entries?.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:10px;font-family:var(--mono);padding:4px 0">No history yet</div>';
+    return;
+  }
+  el.innerHTML = entries.slice().reverse().slice(0, 8).map(v => `
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <div style="width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:5px"></div>
+      <div style="font-size:10px;font-family:var(--mono);color:var(--text-sub);line-height:1.4">${v}</div>
+    </div>`).join('');
 }
 
 // ── STATUS ────────────────────────────────────────────────────────────────────
@@ -410,7 +399,7 @@ export async function uploadPhoto(e) {
       unit:       state.currentModalId,
     });
     showToast('✓ Photo uploaded');
-    loadPhotos(state.currentModalId);
+    _renderPhotos(state.DATA.find(x => x.id === state.currentModalId)?.photos || []);
   } catch (err) {
     showToast('⚠ Upload failed');
     console.error(err);
@@ -438,33 +427,31 @@ export function compressImage(file, maxWidth, quality) {
   });
 }
 
-export async function loadPhotos(unitId) {
+function _renderPhotos(photos) {
   const grid = document.getElementById('photo-grid');
   if (!grid) return;
-  try {
-    const snap = await state.db.collection(COLLECTION).doc(unitId)
-      .collection('photos').orderBy('uploadedAt', 'desc').get();
-    if (snap.empty) {
-      grid.innerHTML = '<div id="photo-empty" style="grid-column:span 3;text-align:center;padding:20px;color:var(--text-muted);font-size:11px">No photos yet</div>';
-      return;
-    }
-    grid.innerHTML = snap.docs.map(doc => {
-      const p     = doc.data();
-      const thumb = p.url.replace('/upload/', '/upload/w_200,h_200,c_fill,q_auto/');
-      const ts    = p.uploadedAt?.toDate ? p.uploadedAt.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-      return `
-        <div onclick="openLightbox('${p.url}','${doc.id}','${ts}')" style="
-          aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;
-          background:var(--surface);border:1px solid var(--border);position:relative">
-          <img src="${thumb}" style="width:100%;height:100%;object-fit:cover"
-               loading="lazy" onerror="this.parentElement.style.background='var(--card)'">
-          <div style="
-            position:absolute;bottom:0;left:0;right:0;
-            background:linear-gradient(transparent,rgba(0,0,0,.7));
-            padding:4px 4px 3px;font-size:7px;color:rgba(255,255,255,.7);font-family:var(--mono)">${ts}</div>
-        </div>`;
-    }).join('');
-  } catch (err) { console.error('loadPhotos error:', err); }
+  if (!photos?.length) {
+    grid.innerHTML = '<div id="photo-empty" style="grid-column:span 3;text-align:center;padding:20px;color:var(--text-muted);font-size:11px">No photos yet</div>';
+    return;
+  }
+  grid.innerHTML = photos.map(p => {
+    const url   = typeof p === 'string' ? p : p.url;
+    const thumb = url.replace('/upload/', '/upload/w_200,h_200,c_fill,q_auto/');
+    const ts    = p.uploadedAt?.toDate
+      ? p.uploadedAt.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : (typeof p.uploadedAt === 'string' ? p.uploadedAt : '');
+    return `
+      <div onclick="openLightbox('${url}','${p.id || ''}','${ts}')" style="
+        aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;
+        background:var(--surface);border:1px solid var(--border);position:relative">
+        <img src="${thumb}" style="width:100%;height:100%;object-fit:cover"
+             loading="lazy" onerror="this.parentElement.style.background='var(--card)'">
+        <div style="
+          position:absolute;bottom:0;left:0;right:0;
+          background:linear-gradient(transparent,rgba(0,0,0,.7));
+          padding:4px 4px 3px;font-size:7px;color:rgba(255,255,255,.7);font-family:var(--mono)">${ts}</div>
+      </div>`;
+  }).join('');
 }
 
 export function openLightbox(url, photoDocId, info) {
@@ -490,7 +477,7 @@ export async function deletePhoto(e) {
     await state.db.collection(COLLECTION).doc(state.currentModalId)
       .collection('photos').doc(state.currentLightboxPhotoId).delete();
     closeLightbox();
-    loadPhotos(state.currentModalId);
+    _renderPhotos(state.DATA.find(x => x.id === state.currentModalId)?.photos || []);
     showToast('✓ Photo deleted');
   } catch (err) { showToast('⚠ Could not delete'); console.error(err); }
 }
