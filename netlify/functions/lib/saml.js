@@ -8,9 +8,12 @@
 //   ENTRA_TENANT_ID      Azure AD tenant GUID
 //   ENTRA_SP_ENTITY_ID   Our SP Entity ID (e.g. https://yourapp.netlify.app)
 //   ENTRA_ACS_URL        Full ACS callback URL (e.g. https://yourapp.netlify.app/api/auth/saml/callback)
-//   ENTRA_IDP_CERT       Entra signing certificate — PEM body, newlines as \\n in Netlify env
+//
+// IdP certificate is sourced from lib/secrets.js (moved out of env vars to
+// stay within the 4KB AWS Lambda environment variable limit).
 
-const { SAML } = require('@node-saml/node-saml');
+const { SAML }          = require('@node-saml/node-saml');
+const { ENTRA_IDP_CERT } = require('./secrets');
 
 let _instance = null;
 
@@ -20,22 +23,14 @@ function getSaml() {
   const tenantId = process.env.ENTRA_TENANT_ID;
   if (!tenantId) throw new Error('ENTRA_TENANT_ID is not configured.');
 
-  const acsUrl    = process.env.ENTRA_ACS_URL;
-  const entityId  = process.env.ENTRA_SP_ENTITY_ID;
+  const acsUrl   = process.env.ENTRA_ACS_URL;
+  const entityId = process.env.ENTRA_SP_ENTITY_ID;
 
   if (!acsUrl || !entityId) {
     throw new Error('ENTRA_ACS_URL and ENTRA_SP_ENTITY_ID must both be set.');
   }
 
-  // Netlify env vars encode newlines as literal \\n — sanitise the same way
-  // as the Firebase private key in firebaseAdmin.js.
-  const rawCert = process.env.ENTRA_IDP_CERT || '';
-  const cert = rawCert
-    .replace(/\\n/g, '\n')
-    .replace(/^"|"$/g, '')
-    .trim();
-
-  if (!cert) throw new Error('ENTRA_IDP_CERT is not configured.');
+  if (!ENTRA_IDP_CERT) throw new Error('ENTRA_IDP_CERT is not configured in secrets.js.');
 
   _instance = new SAML({
     // Service Provider
@@ -45,7 +40,7 @@ function getSaml() {
     // Identity Provider (Entra ID)
     entryPoint:           `https://login.microsoftonline.com/${tenantId}/saml2`,
     idpIssuer:            `https://sts.windows.net/${tenantId}/`,
-    idpCert:              cert,
+    idpCert:              ENTRA_IDP_CERT,
 
     // Assertion requirements
     wantAssertionsSigned: true,

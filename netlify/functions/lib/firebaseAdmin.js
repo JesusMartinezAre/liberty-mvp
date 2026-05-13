@@ -1,20 +1,15 @@
 'use strict';
 
-const admin = require('firebase-admin');
+const admin                  = require('firebase-admin');
+const { FIREBASE_PRIVATE_KEY } = require('./secrets');
 
 function getAdmin() {
   if (!admin.apps.length) {
-    const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
-    const cleanKey = rawKey
-      .replace(/\\n/g, '\n') // convert escaped newlines to real newlines
-      .replace(/^"|"$/g, '') // strip surrounding quotes if Netlify added them
-      .trim();
-
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId:   process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  cleanKey,
+        privateKey:  FIREBASE_PRIVATE_KEY,
       }),
     });
   }
