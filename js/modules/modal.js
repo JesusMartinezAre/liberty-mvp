@@ -152,6 +152,20 @@ export function setInstalled(installed) {
   if ((d.installed === true) === installed) return;
 
   if (installed) {
+    const missing = [];
+    if (!d.venue || d.venue === '—')
+      missing.push('• Venue — not assigned');
+    if (!d.zone  || d.zone  === '—')
+      missing.push('• Zone / Section — not assigned');
+    if (!d.lat   || !d.lng)
+      missing.push('• GPS Location — not captured');
+    if (!Array.isArray(d.photos) || d.photos.length === 0)
+      missing.push('• Photo Evidence — no photos uploaded');
+
+    if (missing.length) {
+      alert('Cannot mark as INSTALLED.\n\nMissing required data:\n\n' + missing.join('\n'));
+      return;
+    }
     _openTechModal('install', 'Installation confirmation', '✓ Confirm Installation');
   } else {
     if (!confirm('Mark this unit as Not Installed?')) return;
