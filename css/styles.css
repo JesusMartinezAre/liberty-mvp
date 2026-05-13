@@ -714,3 +714,14 @@ body.field-mode #loc-field, body.field-mode #m-section, body.field-mode .keep { 
 /* ── LEGACY OVERLAY SUPPRESSION — Step A safety net ──────────── */
 /* Force-hide before JS runs. Removed together with the HTML in Step C. */
 #login-overlay, #pin-overlay { display: none !important; }
+
+/* ── POPA header logo ──────────────────────────────────────────────────────── */
+.header-logo {
+  width: 40px;
+  height: auto;
+  opacity: .85;
+  display: block;
+}
+@media (min-width: 768px) {
+  .header-logo { width: 55px; }
+}
