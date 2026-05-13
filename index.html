@@ -363,13 +363,12 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px">
       <div>
         <div class="field-lbl" style="margin-bottom:4px">Venue</div>
-        <select id="m-venue-sel" style="
-          width:100%;background:var(--surface);border:1px solid var(--border);
-          border-radius:8px;padding:8px 10px;font-family:var(--sans);font-size:11px;
-          color:var(--text);outline:none;-webkit-appearance:none;cursor:pointer;
-        ">
-          <option value="">— Not assigned —</option>
-        </select>
+        <input type="text" id="m-venue-sel" list="venue-datalist"
+          placeholder="Select or type a venue…"
+          style="width:100%;background:var(--surface);border:1px solid var(--border);
+                 border-radius:8px;padding:8px 10px;font-family:var(--sans);font-size:11px;
+                 color:var(--text);outline:none;box-sizing:border-box">
+        <datalist id="venue-datalist"></datalist>
       </div>
       <div>
         <div class="field-lbl" style="margin-bottom:4px">Zone / Section</div>

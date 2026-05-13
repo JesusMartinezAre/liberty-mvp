@@ -102,6 +102,23 @@ export function renderPipeline() {
     </div>`;
   });
 
+  const knownIds = new Set(venues.map(v => v.id));
+  const freeform = [...new Set(
+    state.DATA.map(d => d.venue).filter(v => v && v !== '—' && !knownIds.has(v))
+  )];
+  freeform.forEach((v, i) => {
+    const color = VENUE_PILL_COLORS[(venues.length + i) % VENUE_PILL_COLORS.length];
+    const count = counts[v] || 0;
+    const pct   = installedTotal > 0 ? Math.round(count / installedTotal * 100) : 0;
+    html += `
+    <div class="pipe-row kpi-btn" onclick="venueFilter('${v}')" style="cursor:pointer">
+      <div class="pipe-dot" style="background:${color}"></div>
+      <div class="pipe-name" style="color:${color}">${v}</div>
+      <div class="pipe-count" style="color:${color}">${count}</div>
+      <div class="pipe-pct">${pct}% ›</div>
+    </div>`;
+  });
+
   document.getElementById('pipeline').innerHTML = html;
 }
 
@@ -126,10 +143,10 @@ export function renderList() {
   let infoHTML      = `${filtered.length} unit${filtered.length !== 1 ? 's' : ''}`;
   if (state.filterVenue) {
     const activeVenue = getVenues().find(v => v.id === state.filterVenue);
-    if (activeVenue) {
-      const shortName = activeVenue.name.split('—')[0].split(',')[0].trim();
-      infoHTML += ` <span onclick="clearVenueFilter()" style="display:inline-flex;align-items:center;gap:4px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--navori);padding:2px 8px;border-radius:10px;margin-left:8px;font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer">📍 ${shortName} ✕</span>`;
-    }
+    const shortName   = activeVenue
+      ? activeVenue.name.split('—')[0].split(',')[0].trim()
+      : state.filterVenue;
+    infoHTML += ` <span onclick="clearVenueFilter()" style="display:inline-flex;align-items:center;gap:4px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--navori);padding:2px 8px;border-radius:10px;margin-left:8px;font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer">📍 ${shortName} ✕</span>`;
   }
   document.getElementById('res-info').innerHTML         = infoHTML;
   document.getElementById('tab-filtered').textContent   = filtered.length;
@@ -195,8 +212,14 @@ const VENUE_PILL_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#22c55e', '#ef4444'
 export function renderVenueFilters() {
   const container = document.getElementById('venue-filter-btns');
   if (!container) return;
-  const venues = getVenues();
-  container.innerHTML = venues.map((v, i) => {
+
+  const known    = getVenues();
+  const knownIds = new Set(known.map(v => v.id));
+  const freeform = [...new Set(
+    state.DATA.map(d => d.venue).filter(v => v && v !== '—' && !knownIds.has(v))
+  )];
+
+  const knownBtns = known.map((v, i) => {
     const color     = VENUE_PILL_COLORS[i % VENUE_PILL_COLORS.length];
     const shortName = v.name.split('—')[0].split(',')[0].trim();
     return `<button class="sf" data-v="${v.id}"
@@ -204,7 +227,18 @@ export function renderVenueFilters() {
       style="background:${color}1a;color:${color};border-color:${color}4d">
       📍 ${shortName}
     </button>`;
-  }).join('');
+  });
+
+  const freeformBtns = freeform.map((v, i) => {
+    const color = VENUE_PILL_COLORS[(known.length + i) % VENUE_PILL_COLORS.length];
+    return `<button class="sf" data-v="${v}"
+      onclick="venueFilterChip('${v}',this)"
+      style="background:${color}1a;color:${color};border-color:${color}4d">
+      📍 ${v}
+    </button>`;
+  });
+
+  container.innerHTML = [...knownBtns, ...freeformBtns].join('');
 }
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────

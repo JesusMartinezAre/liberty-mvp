@@ -26,14 +26,19 @@ function _openTechModal(action, subtitle, btnLabel, payload = null) {
   document.getElementById('tech-modal').style.display = 'flex';
 }
 
-// ── VENUE DROPDOWN ────────────────────────────────────────────────────────────
-function populateVenueDropdown() {
-  const sel = document.getElementById('m-venue-sel');
-  if (!sel) return;
-  const current = sel.value;
-  sel.innerHTML = '<option value="">— Select venue —</option>' +
-    getVenues().map(v => `<option value="${v.id}">${v.name}</option>`).join('');
-  if (current) sel.value = current;
+// ── VENUE DATALIST ────────────────────────────────────────────────────────────
+function populateVenueDatalist() {
+  const dl = document.getElementById('venue-datalist');
+  if (!dl) return;
+  const known    = getVenues();
+  const knownIds = new Set(known.map(v => v.id));
+  const freeform = [...new Set(
+    state.DATA.map(d => d.venue).filter(v => v && v !== '—' && !knownIds.has(v))
+  )];
+  dl.innerHTML = [
+    ...known.map(v    => `<option value="${v.name}">`),
+    ...freeform.map(v => `<option value="${v}">`),
+  ].join('');
 }
 
 // ── OPEN / CLOSE ──────────────────────────────────────────────────────────────
@@ -95,9 +100,11 @@ export function openModal(id) {
   setF('m-content',    d.content);
   document.getElementById('m-notes').value = d.notes || '';
 
-  populateVenueDropdown();
-  const venueSel = document.getElementById('m-venue-sel');
-  venueSel.value = (d.venue && d.venue !== '—') ? d.venue : '';
+  populateVenueDatalist();
+  const venueInput = document.getElementById('m-venue-sel');
+  const rawVenue   = (d.venue && d.venue !== '—') ? d.venue : '';
+  const knownVenue = rawVenue ? getVenues().find(v => v.id === rawVenue) : null;
+  venueInput.value = knownVenue ? knownVenue.name : rawVenue;
   document.getElementById('m-zone-sel').value = (d.zone && d.zone !== '—') ? d.zone : '';
 
   const sc = statusConfig(d.status);
@@ -233,12 +240,14 @@ export function cancelTechModal() {
 export function saveVenueAssignment() {
   if (state.isReadOnly) { showToast('🔒 View only mode'); return; }
   if (!state.currentModalId) { showToast('No unit selected'); return; }
-  const venue = document.getElementById('m-venue-sel').value;
-  const zone  = document.getElementById('m-zone-sel').value.trim();
+  const raw  = document.getElementById('m-venue-sel').value.trim();
+  const zone = document.getElementById('m-zone-sel').value.trim();
 
-  if (!venue) {
+  if (!raw) {
     _openTechModal('venue', 'Remove venue assignment', '✓ Confirm Removal', { unassign: true });
   } else {
+    const known = getVenues().find(v => v.name === raw);
+    const venue = known ? known.id : raw;
     _openTechModal('venue', 'Venue assignment', '✓ Save Assignment', { venue, zone });
   }
 }
