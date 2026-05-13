@@ -22,7 +22,7 @@ import { openModal, closeModal, closeOverlay,
          setInstalled, confirmTechModal, cancelTechModal,
          saveVenueAssignment, saveNotes,
          captureLocation, clearLocation,
-         uploadPhoto, openLightbox, closeLightbox, deletePhoto,
+         uploadPhoto, openLightbox, closeLightbox, deletePhoto, deletePhotoInline,
          exportUnitExcel, exportUnitPDF, toggleFieldMode, testEmail } from './modules/modal.js';
 
 import { exportExcel, exportPDF }                                    from './modules/export.js';
@@ -47,6 +47,7 @@ window.uploadPhoto         = uploadPhoto;
 window.openLightbox        = openLightbox;
 window.closeLightbox       = closeLightbox;
 window.deletePhoto         = deletePhoto;
+window.deletePhotoInline   = deletePhotoInline;
 window.exportUnitExcel     = exportUnitExcel;
 window.exportUnitPDF       = exportUnitPDF;
 window.toggleFieldMode     = toggleFieldMode;

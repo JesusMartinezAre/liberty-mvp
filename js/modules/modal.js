@@ -519,6 +519,12 @@ function _renderPhotos(photos) {
         background:var(--surface);border:1px solid var(--border);position:relative">
         <img src="${thumb}" style="width:100%;height:100%;object-fit:cover"
              loading="lazy" onerror="this.parentElement.style.background='var(--card)'">
+        <button onclick="event.stopPropagation();deletePhotoInline('${p.publicId || ''}')" style="
+          position:absolute;top:4px;right:4px;width:20px;height:20px;
+          border-radius:50%;background:rgba(0,0,0,.65);border:none;
+          color:#fff;font-size:11px;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;
+          z-index:2;line-height:1;padding:0">✕</button>
         <div style="
           position:absolute;bottom:0;left:0;right:0;
           background:linear-gradient(transparent,rgba(0,0,0,.7));
@@ -542,31 +548,36 @@ export function closeLightbox() {
   state.currentLightboxPhotoId = null;
 }
 
+async function _doDeletePhoto(publicId) {
+  const db     = state.db;
+  const evSnap = await db.collection('evidence_players')
+    .where('playerId', '==', state.currentModalId)
+    .limit(1)
+    .get();
+  if (!evSnap.empty) {
+    const evDoc   = evSnap.docs[0];
+    const updated = (evDoc.data().photos || []).filter(p => p.publicId !== publicId);
+    await evDoc.ref.update({ photos: updated });
+  }
+  const d = state.DATA.find(x => x.id === state.currentModalId);
+  if (d) d.photos = (d.photos || []).filter(p => p.publicId !== publicId);
+  _renderPhotos(d?.photos || []);
+  showToast('✓ Photo deleted');
+}
+
 export async function deletePhoto(e) {
   e.stopPropagation();
   if (!state.currentLightboxPhotoId || !state.currentModalId) return;
   if (!confirm('Delete this photo?')) return;
-  try {
-    const db     = state.db;
-    const evSnap = await db.collection('evidence_players')
-      .where('playerId', '==', state.currentModalId)
-      .limit(1)
-      .get();
+  try { await _doDeletePhoto(state.currentLightboxPhotoId); closeLightbox(); }
+  catch (err) { showToast('⚠ Could not delete'); console.error(err); }
+}
 
-    if (!evSnap.empty) {
-      const evDoc   = evSnap.docs[0];
-      const updated = (evDoc.data().photos || []).filter(p => p.publicId !== state.currentLightboxPhotoId);
-      await evDoc.ref.update({ photos: updated });
-    }
-
-    // Optimistically update state.DATA so the grid clears the deleted photo immediately.
-    const d = state.DATA.find(x => x.id === state.currentModalId);
-    if (d) d.photos = (d.photos || []).filter(p => p.publicId !== state.currentLightboxPhotoId);
-
-    closeLightbox();
-    _renderPhotos(d?.photos || []);
-    showToast('✓ Photo deleted');
-  } catch (err) { showToast('⚠ Could not delete'); console.error(err); }
+export async function deletePhotoInline(publicId) {
+  if (!publicId || !state.currentModalId) return;
+  if (!confirm('Delete this photo?')) return;
+  try { await _doDeletePhoto(publicId); }
+  catch (err) { showToast('⚠ Could not delete'); console.error(err); }
 }
 
 // ── FIELD MODE ────────────────────────────────────────────────────────────────
