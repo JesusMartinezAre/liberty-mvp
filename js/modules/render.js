@@ -67,17 +67,14 @@ export function renderKPIs() {
 
 // ── PIPELINE ──────────────────────────────────────────────────────────────────
 export function renderPipeline() {
-  const installedTotal = state.DATA.filter(d => d.status === 'Installed at Venue').length;
+  const installedTotal = state.DATA.filter(d => d.installed === true).length;
   const total          = state.DATA.length || 1;
   const installedColor = '#22c55e';
+  const venues         = getVenues();
 
-  const venueLabels = { metlife:'MetLife · NJ', lincoln:'Lincoln · PHL', rockefeller:'Rockefeller · NY' };
-  const venueColors = { metlife:'#3b82f6', lincoln:'#8b5cf6', rockefeller:'#f59e0b' };
-  const venueCounts = { metlife:0, lincoln:0, rockefeller:0 };
+  const counts = {};
   state.DATA.forEach(d => {
-    if (d.status === 'Installed at Venue' && d.venue && venueCounts[d.venue] !== undefined) {
-      venueCounts[d.venue]++;
-    }
+    if (d.installed === true && d.venue) counts[d.venue] = (counts[d.venue] || 0) + 1;
   });
 
   let html = `
@@ -91,14 +88,16 @@ export function renderPipeline() {
     <div style="font-size:9px;color:var(--text-muted);letter-spacing:1px;font-weight:700;margin-bottom:8px;padding-left:2px">FILTER BY VENUE</div>
   `;
 
-  Object.keys(venueLabels).forEach(v => {
-    const count = venueCounts[v];
-    const pct   = installedTotal > 0 ? Math.round(count / installedTotal * 100) : 0;
+  venues.forEach((v, i) => {
+    const color     = VENUE_PILL_COLORS[i % VENUE_PILL_COLORS.length];
+    const count     = counts[v.id] || 0;
+    const pct       = installedTotal > 0 ? Math.round(count / installedTotal * 100) : 0;
+    const shortName = v.name.split('—')[0].split(',')[0].trim();
     html += `
-    <div class="pipe-row kpi-btn" onclick="venueFilter('${v}')" style="cursor:pointer">
-      <div class="pipe-dot" style="background:${venueColors[v]}"></div>
-      <div class="pipe-name" style="color:${venueColors[v]}">${venueLabels[v]}</div>
-      <div class="pipe-count" style="color:${venueColors[v]}">${count}</div>
+    <div class="pipe-row kpi-btn" onclick="venueFilter('${v.id}')" style="cursor:pointer">
+      <div class="pipe-dot" style="background:${color}"></div>
+      <div class="pipe-name" style="color:${color}">${shortName}</div>
+      <div class="pipe-count" style="color:${color}">${count}</div>
       <div class="pipe-pct">${pct}% ›</div>
     </div>`;
   });
