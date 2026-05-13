@@ -2,7 +2,7 @@
 // Loads and renders the full cross-unit change history from Firestore.
 
 import { state }      from './state.js';
-import { COLLECTION, TIPO } from './config.js';
+import { TIPO } from './config.js';
 import { getVenues }        from './dataService.js';
 import { showToast }  from './toast.js';
 
@@ -21,7 +21,7 @@ export async function loadActivityLog() {
   if (btn) btn.disabled = true;
 
   try {
-    const snap    = await state.db.collection(COLLECTION).get();
+    const snap    = await state.db.collection('players').get();
     const entries = [];
 
     snap.forEach(doc => {

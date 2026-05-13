@@ -6,6 +6,7 @@ import { COLLECTION, CLOUDINARY_PRESET, CLOUDINARY_UPLOAD_URL,
          EMAILJS_SERVICE, EMAILJS_TEMPLATE, NOTIFY_EMAIL } from './config.js';
 import { showToast }                                from './toast.js';
 import { safeUpdate }                               from './api.js';
+import { logChange }                                from './logger.js';
 import { renderAll, statusConfig }                  from './render.js';
 import { getVenues }                                from './dataService.js';
 
@@ -188,7 +189,6 @@ async function _confirmInstall(installed, technician) {
     updatedBy:      state.currentUser  || 'Unknown',
     updatedByEmail: state.currentEmail || '',
     updatedAt:      firebase.firestore.FieldValue.serverTimestamp(),
-    [`log_${Date.now()}`]: `${newStatus} — ${technician || state.currentUser || '—'} · ${ts}`,
   };
   if (technician) updateData.technician = technician;
 
@@ -197,6 +197,7 @@ async function _confirmInstall(installed, technician) {
 
   try {
     await safeUpdate(state.currentModalId, updateData);
+    await logChange(state.currentModalId, newStatus, technician || state.currentUser);
     showToast(`✓ ${newStatus}`);
     if (installed) {
       const d2 = state.DATA.find(x => x.id === state.currentModalId);
@@ -276,6 +277,7 @@ async function _confirmVenue(technician, payload) {
   try {
     if (payload.unassign) {
       await safeUpdate(state.currentModalId, { ...base, venue: FieldValue.delete(), zone: FieldValue.delete() });
+      await logChange(state.currentModalId, 'Removed from venue', technician);
       showToast('✓ Removed from venue · ' + technician);
       const d = state.DATA.find(x => x.id === state.currentModalId);
       if (d) { d.venue = '—'; d.zone = '—'; d.technician = technician; }
@@ -283,6 +285,7 @@ async function _confirmVenue(technician, payload) {
       const { venue, zone } = payload;
       await safeUpdate(state.currentModalId, { ...base, venue, zone });
       const venueName = getVenues().find(v => v.id === venue)?.name?.split('—')[0].trim() || venue;
+      await logChange(state.currentModalId, `Venue → ${venueName}${zone ? ' · ' + zone : ''}`, technician);
       showToast('✓ ' + venueName + (zone ? ' · ' + zone : ''));
       const d = state.DATA.find(x => x.id === state.currentModalId);
       if (d) { d.venue = venue; d.zone = zone; d.technician = technician; }
@@ -315,6 +318,7 @@ async function _confirmNotes(technician, { notes }) {
       updatedBy:      state.currentUser  || 'Unknown',
       updatedByEmail: state.currentEmail || '',
     });
+    await logChange(state.currentModalId, 'Notes updated', technician);
     showToast('✓ Notes saved');
   } catch (e) {
     showToast('⚠ Could not save notes');
@@ -472,6 +476,7 @@ export async function uploadPhoto(e) {
       d.photos = [...(d.photos || []), photo];
       _renderPhotos(d.photos);
     }
+    await logChange(state.currentModalId, 'Photo added', state.currentUser);
     showToast('✓ Photo uploaded');
   } catch (err) {
     showToast('⚠ Upload failed');
@@ -561,6 +566,7 @@ async function _doDeletePhoto(publicId) {
   }
   const d = state.DATA.find(x => x.id === state.currentModalId);
   if (d) d.photos = (d.photos || []).filter(p => p.publicId !== publicId);
+  await logChange(state.currentModalId, 'Photo deleted', state.currentUser);
   _renderPhotos(d?.photos || []);
   showToast('✓ Photo deleted');
 }

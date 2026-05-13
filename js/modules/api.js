@@ -97,6 +97,7 @@ export async function safeUpdate(docId, data) {
   const offlineData = { ...data };
   delete offlineData.updatedAt;
   delete offlineData.locationCapturedAt;
+  delete offlineData.changeHistory;  // FieldValue.arrayUnion is not JSON-serializable
 
   if (!navigator.onLine) {
     const q = getQueue();

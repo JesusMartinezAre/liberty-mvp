@@ -32,6 +32,8 @@ import { openActivityLog, loadActivityLog, filterActivity }          from './mod
 import { initAuthGuard, handleSignOut, guardEdit, enterReadOnly,
          initEmailJS }                                               from './modules/auth.js';
 
+import { maintenance_clearLogs }                                    from './modules/logger.js';
+
 // ── EXPOSE WINDOW FUNCTIONS (required by inline onclick="" attributes) ─────────
 window.openModal           = openModal;
 window.closeModal          = closeModal;
@@ -79,6 +81,8 @@ window.filterActivity      = filterActivity;
 window.guardEdit           = guardEdit;
 window.enterReadOnly       = enterReadOnly;
 window.handleSignOut       = handleSignOut;
+
+window.maintenance_clearLogs = maintenance_clearLogs;
 
 window.showToast           = showToast;
 
