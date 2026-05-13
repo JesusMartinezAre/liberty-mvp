@@ -10,6 +10,7 @@
 const { getDb }       = require('./lib/firebaseAdmin');
 const { signSession } = require('./lib/session');
 const { appJson }     = require('./lib/http');
+const bcrypt          = require('bcryptjs');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -55,8 +56,7 @@ exports.handler = async (event) => {
     // No hash stored → account not set up for password auth.
     if (!user.passwordHash) return INVALID;
 
-    const bcrypt = require('bcryptjs');
-    const match  = await bcrypt.compare(password, user.passwordHash);
+    const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) return INVALID;
 
     const token = await signSession({
