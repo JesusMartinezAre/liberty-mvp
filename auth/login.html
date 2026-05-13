@@ -391,10 +391,43 @@
     passwordErr.textContent = '';
   });
 
-  // ── Password form (placeholder) ───────────────────────────────────────────
-  formPassword.addEventListener('submit', (e) => {
+  // ── Password form ─────────────────────────────────────────────────────────
+  formPassword.addEventListener('submit', async (e) => {
     e.preventDefault();
-    passwordErr.textContent = 'Password sign-in is not yet enabled. Please use Microsoft SSO.';
+    passwordErr.textContent = '';
+
+    const email    = document.getElementById('pw-email').value.trim();
+    const password = document.getElementById('pw-password').value;
+
+    if (!email || !password) {
+      passwordErr.textContent = 'Please enter your email and password.';
+      return;
+    }
+
+    const submitBtn = document.getElementById('btn-pw-submit');
+    submitBtn.disabled = true;
+    submitBtn.classList.add('loading');
+
+    try {
+      const res  = await fetch('/api/auth/password-login', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server error ${res.status}`);
+      }
+
+      localStorage.setItem('app-session', data.token);
+      window.location.replace('/index.html');
+
+    } catch (err) {
+      passwordErr.textContent = err.message || 'Sign-in failed. Please try again.';
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('loading');
+    }
   });
 </script>
 </body>

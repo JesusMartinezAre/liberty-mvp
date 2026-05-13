@@ -48,6 +48,13 @@
   status = 200
   force  = true
 
+# Password login — bcrypt verification + JWT issuance
+[[redirects]]
+  from   = "/api/auth/password-login"
+  to     = "/.netlify/functions/password-login"
+  status = 200
+  force  = true
+
 # SCIM 2.0 — route all /scim/v2/* traffic to the serverless function.
 # Must sit above the SPA catch-all so Netlify matches it first.
 [[redirects]]

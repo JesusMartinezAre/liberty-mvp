@@ -3,6 +3,7 @@
 /api/auth/saml/initiate  /.netlify/functions/saml-initiate    200
 /api/auth/saml/callback  /.netlify/functions/saml-callback    200
 /api/auth/saml/metadata  /.netlify/functions/saml-metadata    200
+/api/auth/password-login /.netlify/functions/password-login   200
 /scim/v2/*               /.netlify/functions/scim             200
 
 # SPA fallback — must be last
