@@ -74,8 +74,6 @@ export function openModal(id) {
   }
 
   document.getElementById('m-bottler').textContent = d.bottler;
-  const sectionEl = document.getElementById('m-section');
-  if (sectionEl) sectionEl.value = (d.zone && d.zone !== '—') ? d.zone : '';
   setF('m-technician', d.technician);
   setF('m-content',    d.content);
   const notesEl = document.getElementById('m-notes');
@@ -84,10 +82,8 @@ export function openModal(id) {
 
   populateVenueDropdown();
   const venueSel = document.getElementById('m-venue-sel');
-  const zoneSel  = document.getElementById('m-zone-sel');
   venueSel.value = (d.venue && d.venue !== '—') ? d.venue : '';
-  updateZoneOptions();
-  setTimeout(() => { if (d.zone && d.zone !== '—') zoneSel.value = d.zone; }, 50);
+  document.getElementById('m-zone-sel').value = (d.zone && d.zone !== '—') ? d.zone : '';
 
   const sc = statusConfig(d.status);
   const sv = document.getElementById('m-status-val');
@@ -184,7 +180,7 @@ export async function sendInstallNotification(unit) {
     if (typeof emailjs === 'undefined') { console.warn('EmailJS not loaded'); return; }
     const ts        = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     const installed = state.DATA.filter(d => d.status === 'Installed at Venue').length;
-    const msg       = `Unit installed at POS\n\nSerial: ${unit.digitalHeader}\nModel: ${unit.model}\nVenue: ${unit.venue || '—'}\nZone: ${unit.venueArea || '—'}\nSection: ${unit.section || '—'}\nLocation: ${unit.location || '—'}\nTechnician: ${unit.technician || '—'}\nTime: ${ts}\n\nProgress: ${installed}/${state.DATA.length} units installed`;
+    const msg       = `Unit installed at POS\n\nSerial: ${unit.digitalHeader}\nModel: ${unit.model}\nVenue: ${unit.venueName || unit.venue || '—'}\nZone: ${unit.zone || '—'}\nLocation: ${unit.location || '—'}\nTechnician: ${unit.technician || '—'}\nTime: ${ts}\n\nProgress: ${installed}/${state.DATA.length} units installed`;
     const result    = await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
       title:   `✅ Installed — ${unit.digitalHeader}`,
       name:    unit.technician || 'Field Tech',
@@ -213,24 +209,10 @@ export function cancelTechModal() {
 }
 
 // ── VENUE / ZONE ASSIGNMENT ───────────────────────────────────────────────────
-export function updateZoneOptions() {
-  const venueId = document.getElementById('m-venue-sel').value;
-  const zoneSel = document.getElementById('m-zone-sel');
-  if (!venueId) {
-    zoneSel.innerHTML = '<option value="">— Select venue first —</option>';
-    return;
-  }
-  const venueDoc = getVenues().find(v => v.id === venueId);
-  const areas    = venueDoc?.areas || [];
-  zoneSel.innerHTML = '<option value="">— Select zone —</option>' +
-    areas.map(a => `<option value="${a.id}">${a.label}</option>`).join('');
-}
-
 export async function saveVenueAssignment() {
   if (!state.currentModalId) { showToast('No unit selected'); return; }
-  const venue   = document.getElementById('m-venue-sel').value;
-  const zone    = document.getElementById('m-zone-sel').value;
-  const section = (document.getElementById('m-section')?.value || '').trim();
+  const venue = document.getElementById('m-venue-sel').value;
+  const zone  = document.getElementById('m-zone-sel').value.trim();
 
   const btn = document.querySelector('[onclick="saveVenueAssignment()"]');
   if (btn) { btn.textContent = '⏳ Saving…'; btn.disabled = true; }
@@ -239,12 +221,11 @@ export async function saveVenueAssignment() {
   const updatedByEmail = state.currentEmail || '';
   const FieldValue     = firebase.firestore.FieldValue;
 
-  const isUnassigning = !venue;
-  if (isUnassigning) {
+  if (!venue) {
     try {
       await safeUpdate(state.currentModalId, {
-        venue:          FieldValue.delete(),
-        zone:           FieldValue.delete(),
+        venue:         FieldValue.delete(),
+        zone:          FieldValue.delete(),
         updatedBy,
         updatedByEmail,
       });
@@ -259,15 +240,12 @@ export async function saveVenueAssignment() {
     return;
   }
 
-  if (!zone) { showToast('⚠ Select a zone'); if (btn) { btn.disabled = false; btn.textContent = '📍 Save Location Assignment'; } return; }
-
   try {
-    const resolvedZone = section || zone;
-    await safeUpdate(state.currentModalId, { venue, zone: resolvedZone, updatedBy, updatedByEmail });
+    await safeUpdate(state.currentModalId, { venue, zone, updatedBy, updatedByEmail });
     const venueName = getVenues().find(v => v.id === venue)?.name?.split('—')[0].trim() || venue;
-    showToast('✓ ' + venueName + ' · ' + resolvedZone);
+    showToast('✓ ' + venueName + (zone ? ' · ' + zone : ''));
     const d = state.DATA.find(x => x.id === state.currentModalId);
-    if (d) { d.venue = venue; d.zone = resolvedZone; }
+    if (d) { d.venue = venue; d.zone = zone; }
     if (btn) { btn.textContent = '📍 Save Location Assignment'; btn.disabled = false; }
   } catch (e) {
     showToast('⚠ Could not save: ' + e.message);

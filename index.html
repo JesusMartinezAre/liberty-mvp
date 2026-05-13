@@ -361,26 +361,20 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px">
       <div>
         <div class="field-lbl" style="margin-bottom:4px">Venue</div>
-        <select id="m-venue-sel" onchange="updateZoneOptions()" style="
+        <select id="m-venue-sel" style="
           width:100%;background:var(--surface);border:1px solid var(--border);
           border-radius:8px;padding:8px 10px;font-family:var(--sans);font-size:11px;
           color:var(--text);outline:none;-webkit-appearance:none;cursor:pointer;
         ">
           <option value="">— Not assigned —</option>
-          <option value="metlife">MetLife Stadium (NJ)</option>
-          <option value="lincoln">Lincoln Financial (PHL)</option>
-          <option value="rockefeller">Rockefeller Plaza (NY)</option>
         </select>
       </div>
       <div>
-        <div class="field-lbl" style="margin-bottom:4px">Zone</div>
-        <select id="m-zone-sel" style="
-          width:100%;background:var(--surface);border:1px solid var(--border);
-          border-radius:8px;padding:8px 10px;font-family:var(--sans);font-size:11px;
-          color:var(--text);outline:none;-webkit-appearance:none;cursor:pointer;
-        ">
-          <option value="">— Select venue first —</option>
-        </select>
+        <div class="field-lbl" style="margin-bottom:4px">Zone / Section</div>
+        <input type="text" id="m-zone-sel" placeholder="e.g. Field Level North · 107"
+          style="width:100%;background:var(--surface);border:1px solid var(--border);
+                 border-radius:8px;padding:8px 10px;font-family:var(--sans);font-size:11px;
+                 color:var(--text);outline:none;box-sizing:border-box">
       </div>
     </div>
     <button onclick="saveVenueAssignment()" style="
@@ -431,13 +425,6 @@
     <!-- ③ INSTALLATION -->
     <div class="modal-section-title">Installation</div>
     <div class="fields" style="margin-bottom:12px">
-      <div class="field">
-        <div class="field-lbl">Section #</div>
-        <input type="text" id="m-section" placeholder="e.g. 107"
-          style="background:var(--surface);border:1px solid var(--border);border-radius:7px;
-                 padding:8px 10px;font-family:var(--mono);font-size:11px;color:var(--text);
-                 width:100%;box-sizing:border-box;outline:none">
-      </div>
       <div class="field">
         <div class="field-lbl">Technician</div>
         <div class="field-val" id="m-technician"></div>

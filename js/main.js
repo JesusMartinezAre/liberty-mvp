@@ -20,7 +20,7 @@ import { renderStadiumMap, setVenue, openAssignModal }               from './mod
 
 import { openModal, closeModal, closeOverlay,
          setInstalled, confirmTechModal, cancelTechModal,
-         updateZoneOptions, saveVenueAssignment,
+         saveVenueAssignment,
          captureLocation, clearLocation,
          uploadPhoto, openLightbox, closeLightbox, deletePhoto,
          exportUnitExcel, exportUnitPDF, toggleFieldMode, testEmail } from './modules/modal.js';
@@ -39,7 +39,6 @@ window.closeOverlay        = closeOverlay;
 window.setInstalled        = setInstalled;
 window.confirmTechModal    = confirmTechModal;
 window.cancelTechModal     = cancelTechModal;
-window.updateZoneOptions   = updateZoneOptions;
 window.saveVenueAssignment = saveVenueAssignment;
 window.captureLocation     = captureLocation;
 window.clearLocation       = clearLocation;
