@@ -49,11 +49,21 @@ export function venueFilterChip(v, el) {
 
 export function venueFilter(v) {
   state.filterPlatform = 'all';
-  state.filterStatus   = 'Installed at Venue';
+  state.filterStatus   = '';
   state.filterVenue    = v;
   state.filterQ        = '';
   const qb = document.getElementById('q');
   if (qb) qb.value = '';
+
+  document.querySelectorAll('.sf').forEach(c => c.classList.remove('active'));
+  const allChip  = document.querySelector('.sf[data-s=""]');
+  if (allChip) allChip.classList.add('active');
+  const chip = document.querySelector(`.sf[data-v="${v}"]`);
+  if (chip) chip.classList.add('active');
+
+  const inventoryTab = document.querySelector('.tab[onclick*="inventory"]');
+  showPage('inventory', inventoryTab);
+
   renderList();
   setTimeout(() => {
     const el = document.getElementById('item-list');
