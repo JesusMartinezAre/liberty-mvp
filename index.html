@@ -259,9 +259,9 @@
   <div class="status-filters" id="status-filters">
     <button class="sf active" data-s="" onclick="setStatusFilter('',this);clearVenueFilter()" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:var(--text-sub)">All</button>
     <button class="sf" data-s="Installed at Venue" onclick="setStatusFilter('Installed at Venue',this)" style="background:rgba(34,197,94,.1);color:var(--s4);border-color:rgba(34,197,94,.3)">✓ Installed</button>
-    <button class="sf" data-v="metlife" onclick="venueFilterChip('metlife',this)" style="background:rgba(59,130,246,.1);color:#3b82f6;border-color:rgba(59,130,246,.3)">📍 MetLife</button>
-    <button class="sf" data-v="lincoln" onclick="venueFilterChip('lincoln',this)" style="background:rgba(139,92,246,.1);color:#8b5cf6;border-color:rgba(139,92,246,.3)">📍 Lincoln</button>
-    <button class="sf" data-v="rockefeller" onclick="venueFilterChip('rockefeller',this)" style="background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.3)">📍 Rockefeller</button>
+    <button class="sf" data-s="Not Installed" onclick="setStatusFilter('Not Installed',this)"
+      style="background:rgba(85,85,85,.12);color:var(--s0);border-color:rgba(85,85,85,.3)">✕ Not Installed</button>
+    <span id="venue-filter-btns"></span>
   </div>
 
   <div style="display:flex;gap:6px;margin-bottom:12px">

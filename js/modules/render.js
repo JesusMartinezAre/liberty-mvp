@@ -4,6 +4,7 @@
 import { state }        from './state.js';
 import { STATUSES, STATUS_LABELS } from './config.js';
 import { showToast }    from './toast.js';
+import { getVenues }    from './dataService.js';
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 export function statusConfig(s) {
@@ -123,10 +124,13 @@ export function renderDonut() {
 // ── LIST ──────────────────────────────────────────────────────────────────────
 export function renderList() {
   const filtered    = getFiltered();
-  const venueLabels = { metlife:'MetLife', lincoln:'Lincoln', rockefeller:'Rockefeller' };
   let infoHTML      = `${filtered.length} unit${filtered.length !== 1 ? 's' : ''}`;
-  if (state.filterVenue && venueLabels[state.filterVenue]) {
-    infoHTML += ` <span onclick="clearVenueFilter()" style="display:inline-flex;align-items:center;gap:4px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--navori);padding:2px 8px;border-radius:10px;margin-left:8px;font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer">📍 ${venueLabels[state.filterVenue]} ✕</span>`;
+  if (state.filterVenue) {
+    const activeVenue = getVenues().find(v => v.id === state.filterVenue);
+    if (activeVenue) {
+      const shortName = activeVenue.name.split('—')[0].split(',')[0].trim();
+      infoHTML += ` <span onclick="clearVenueFilter()" style="display:inline-flex;align-items:center;gap:4px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--navori);padding:2px 8px;border-radius:10px;margin-left:8px;font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer">📍 ${shortName} ✕</span>`;
+    }
   }
   document.getElementById('res-info').innerHTML         = infoHTML;
   document.getElementById('tab-filtered').textContent   = filtered.length;
@@ -186,12 +190,31 @@ export function updateSidebarCounts() {
   if (s2 && t2) s2.textContent = t2.textContent;
 }
 
+// ── VENUE FILTER BUTTONS ──────────────────────────────────────────────────────
+const VENUE_PILL_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#22c55e', '#ef4444', '#ec4899'];
+
+export function renderVenueFilters() {
+  const container = document.getElementById('venue-filter-btns');
+  if (!container) return;
+  const venues = getVenues();
+  container.innerHTML = venues.map((v, i) => {
+    const color     = VENUE_PILL_COLORS[i % VENUE_PILL_COLORS.length];
+    const shortName = v.name.split('—')[0].split(',')[0].trim();
+    return `<button class="sf" data-v="${v.id}"
+      onclick="venueFilterChip('${v.id}',this)"
+      style="background:${color}1a;color:${color};border-color:${color}4d">
+      📍 ${shortName}
+    </button>`;
+  }).join('');
+}
+
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
 export function renderAll() {
   renderKPIs();
   renderPipeline();
   renderDonut();
   renderList();
+  renderVenueFilters();
   updateVenueProgress();
   updateSidebarCounts();
 }
