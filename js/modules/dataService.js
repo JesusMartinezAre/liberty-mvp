@@ -59,9 +59,15 @@ function adapt(player, venue, evidence) {
     installed:     player.installed     === true,
 
     // ── Venue JOIN ─────────────────────────────────────────────────────────
-    // venue.id is expected to be the slug used throughout the UI
-    // (e.g. 'metlife', 'lincoln', 'rockefeller').
-    venue:         venue?.id            || player.venueId || '—',
+    // Normalize to the slug used by dropdown options / filter logic.
+    // Matches on venue.name keywords so GUIDs or alternate doc IDs still work.
+    venue:         (() => {
+      const n = (venue?.name || '').toLowerCase();
+      if (n.includes('metlife')     || player.venueId === 'metlife')     return 'metlife';
+      if (n.includes('lincoln')     || player.venueId === 'lincoln')     return 'lincoln';
+      if (n.includes('rockefeller') || player.venueId === 'rockefeller') return 'rockefeller';
+      return player.venueId || '—';
+    })(),
     location:      venue?.location      || player.location || '—',
     section:       venue?.section       || player.section  || '—',
 

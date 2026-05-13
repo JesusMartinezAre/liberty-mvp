@@ -64,7 +64,8 @@ export function openModal(id) {
   }
 
   document.getElementById('m-bottler').textContent = d.bottler;
-  setF('m-section',    d.zone);
+  const sectionEl = document.getElementById('m-section');
+  if (sectionEl) sectionEl.value = (d.zone && d.zone !== '—') ? d.zone : '';
   setF('m-technician', d.technician);
   setF('m-content',    d.content);
   const notesEl = document.getElementById('m-notes');
@@ -75,7 +76,7 @@ export function openModal(id) {
   const zoneSel  = document.getElementById('m-zone-sel');
   venueSel.value = (d.venue && d.venue !== '—') ? d.venue : '';
   updateZoneOptions();
-  setTimeout(() => { if (d.venueArea) zoneSel.value = d.venueArea; }, 50);
+  setTimeout(() => { if (d.zone && d.zone !== '—') zoneSel.value = d.zone; }, 50);
 
   const sc = statusConfig(d.status);
   const sv = document.getElementById('m-status-val');
@@ -215,33 +216,29 @@ export function updateZoneOptions() {
 
 export async function saveVenueAssignment() {
   if (!state.currentModalId) { showToast('No unit selected'); return; }
-  const venue = document.getElementById('m-venue-sel').value;
-  const zone  = document.getElementById('m-zone-sel').value;
+  const venue   = document.getElementById('m-venue-sel').value;
+  const zone    = document.getElementById('m-zone-sel').value;
+  const section = (document.getElementById('m-section')?.value || '').trim();
 
   const btn = document.querySelector('[onclick="saveVenueAssignment()"]');
   if (btn) { btn.textContent = '⏳ Saving…'; btn.disabled = true; }
 
+  const updatedBy      = state.currentUser  || 'Unknown';
+  const updatedByEmail = state.currentEmail || '';
+  const FieldValue     = firebase.firestore.FieldValue;
+
   const isUnassigning = !venue;
   if (isUnassigning) {
     try {
-      const tech = state.currentUser || 'Unknown';
-      await state.db.collection(COLLECTION).doc(state.currentModalId).update({
-        venue:           firebase.firestore.FieldValue.delete(),
-        venueArea:       firebase.firestore.FieldValue.delete(),
-        unassignedAt:    firebase.firestore.FieldValue.serverTimestamp(),
-        unassignedBy:    tech,
-        updatedBy:       state.currentUser  || 'Unknown',
-        updatedByEmail:  state.currentEmail || '',
-        updatedAt:       firebase.firestore.FieldValue.serverTimestamp(),
+      await safeUpdate(state.currentModalId, {
+        venue:          FieldValue.delete(),
+        zone:           FieldValue.delete(),
+        updatedBy,
+        updatedByEmail,
       });
-      await state.db.collection(COLLECTION).doc(state.currentModalId).collection('history').add({
-        action: 'venue_unassigned', by: tech,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        note: 'Removed from venue assignment',
-      });
-      showToast('✓ Removed from venue · ' + tech);
+      showToast('✓ Removed from venue · ' + updatedBy);
       const d = state.DATA.find(x => x.id === state.currentModalId);
-      if (d) { delete d.venue; delete d.venueArea; }
+      if (d) { d.venue = '—'; d.zone = '—'; }
       if (btn) { btn.textContent = '📍 Save Location Assignment'; btn.disabled = false; }
     } catch (e) {
       showToast('⚠ Could not save: ' + e.message);
@@ -253,21 +250,12 @@ export async function saveVenueAssignment() {
   if (!zone) { showToast('⚠ Select a zone'); if (btn) { btn.disabled = false; btn.textContent = '📍 Save Location Assignment'; } return; }
 
   try {
-    const tech = state.currentUser || 'Unknown';
-    await state.db.collection(COLLECTION).doc(state.currentModalId).update({
-      venue, venueArea: zone,
-      updatedBy:      state.currentUser  || 'Unknown',
-      updatedByEmail: state.currentEmail || '',
-      updatedAt:      firebase.firestore.FieldValue.serverTimestamp(),
-    });
-    await state.db.collection(COLLECTION).doc(state.currentModalId).collection('history').add({
-      action: 'venue_assigned', venue, venueArea: zone, by: tech,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-    });
+    const resolvedZone = section || zone;
+    await safeUpdate(state.currentModalId, { venue, zone: resolvedZone, updatedBy, updatedByEmail });
     const venueName = VENUES[venue]?.name?.split('—')[0].trim() || venue;
-    showToast('✓ ' + venueName + ' · ' + zone);
+    showToast('✓ ' + venueName + ' · ' + resolvedZone);
     const d = state.DATA.find(x => x.id === state.currentModalId);
-    if (d) { d.venue = venue; d.venueArea = zone; }
+    if (d) { d.venue = venue; d.zone = resolvedZone; }
     if (btn) { btn.textContent = '📍 Save Location Assignment'; btn.disabled = false; }
   } catch (e) {
     showToast('⚠ Could not save: ' + e.message);
