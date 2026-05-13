@@ -350,13 +350,10 @@
     <div class="modal-title" id="m-title"></div>
     <div class="modal-ctrl-badge" id="m-ctrl-badge"></div>
 
-    <div class="status-label">Status — tap to update</div>
+    <div class="status-label">Installation Status</div>
     <div class="status-steps" id="status-steps">
-      <button class="status-step" data-idx="0" onclick="setStatus(0)" style="--sc:var(--s0)">In Assembly</button>
-      <button class="status-step" data-idx="1" onclick="setStatus(1)" style="--sc:var(--s1)">Completed</button>
-      <button class="status-step" data-idx="2" onclick="setStatus(2)" style="--sc:var(--s2)">Shipped</button>
-      <button class="status-step" data-idx="3" onclick="setStatus(3)" style="--sc:var(--s3)">With Client</button>
-      <button class="status-step" data-idx="4" onclick="setStatus(4)" style="--sc:var(--s4)">Installed at Venue</button>
+      <button class="status-step" id="btn-not-installed" onclick="setInstalled(false)">Not Installed</button>
+      <button class="status-step" id="btn-installed"     onclick="setInstalled(true)">Installed</button>
     </div>
 
     <!-- VENUE / ZONE ASSIGNMENT -->

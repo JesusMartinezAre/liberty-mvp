@@ -31,11 +31,8 @@ export const NOTIFY_EMAIL     = import.meta.env.VITE_NOTIFY_EMAIL;
 
 // ── STATUS DEFINITIONS ────────────────────────────────────────────────────────
 export const STATUSES = [
-  { label: 'In Assembly',       color: 'var(--s0)', bg: 'rgba(85,85,85,.15)'       },
-  { label: 'Completed',         color: 'var(--s1)', bg: 'var(--navori-dim)'         },
-  { label: 'Shipped',           color: 'var(--s2)', bg: 'rgba(245,158,11,.12)'      },
-  { label: 'With Client',       color: 'var(--s3)', bg: 'rgba(168,85,247,.12)'      },
-  { label: 'Installed at Venue',color: 'var(--s4)', bg: 'rgba(34,197,94,.12)'       },
+  { label: 'Not Installed',      color: 'var(--s0)', bg: 'rgba(85,85,85,.15)'  },
+  { label: 'Installed at Venue', color: 'var(--s4)', bg: 'rgba(34,197,94,.12)' },
 ];
 export const STATUS_LABELS = STATUSES.map(s => s.label);
 

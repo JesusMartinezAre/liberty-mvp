@@ -34,9 +34,9 @@ let _unsubs   = [];
 function adapt(player, venue, evidence) {
   // Status: prefer explicit player.status for intermediate pipeline stages;
   // installed === true always wins as the terminal state.
-  const status = player.installed === true
-    ? 'Installed at Venue'
-    : (player.status || 'In Assembly');
+  const status = player.installed === true ? 'Installed at Venue' : 'Not Installed';
+
+  const platform = !player.product ? '' : player.product === 'KOS' ? 'KOS' : 'POPA';
 
   return {
     // ── Identity ───────────────────────────────────────────────────────────
@@ -44,8 +44,8 @@ function adapt(player, venue, evidence) {
     digitalHeader: player.unitSerialNumber || player.id,
 
     // ── Hardware ───────────────────────────────────────────────────────────
-    model:         player.product       || player.model  || 'DIGITAL HEADER EXTERIOR 29"',
-    platform:      player.platform      || 'POPA',
+    model:         platform,
+    platform:      platform,
     controller:    player.controller    || '—',
     controllerSN:  player.controllerSN  || '—',
     routerSN:      player.routerSN      || '—',

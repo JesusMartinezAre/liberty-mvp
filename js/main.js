@@ -19,7 +19,7 @@ import { showPage, syncSidebar, checkDesktop, updateOnlineStatus }   from './mod
 import { renderStadiumMap, setVenue, openAssignModal }               from './modules/map.js';
 
 import { openModal, closeModal, closeOverlay, loadChangelog,
-         setStatus, confirmTechModal, cancelTechModal,
+         setInstalled, confirmTechModal, cancelTechModal,
          updateZoneOptions, saveVenueAssignment,
          captureLocation, clearLocation,
          uploadPhoto, openLightbox, closeLightbox, deletePhoto,
@@ -36,7 +36,7 @@ import { initAuthGuard, handleSignOut, guardEdit, enterReadOnly,
 window.openModal           = openModal;
 window.closeModal          = closeModal;
 window.closeOverlay        = closeOverlay;
-window.setStatus           = setStatus;
+window.setInstalled        = setInstalled;
 window.confirmTechModal    = confirmTechModal;
 window.cancelTechModal     = cancelTechModal;
 window.updateZoneOptions   = updateZoneOptions;

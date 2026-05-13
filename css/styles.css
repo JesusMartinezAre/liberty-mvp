@@ -432,7 +432,6 @@ body {
 }
 .status-step:hover { border-color:var(--border-strong); color:var(--text-sub); }
 .status-step.current { color:#fff; border-color:transparent; }
-.status-step.done    { opacity:.38; }
 .status-step::after {
   content:''; position:absolute; bottom:-1px; left:10%; right:10%;
   height:2px; border-radius:1px; background:currentColor;

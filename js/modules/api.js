@@ -53,11 +53,6 @@ async function _writeToRelational(docId, data) {
     }
   }
 
-  // Derive the boolean installed flag from the pipeline status string.
-  if (playerFields.status !== undefined) {
-    playerFields.installed = playerFields.status === 'Installed at Venue';
-  }
-
   playerFields.updatedAt = ts;
 
   // ── Resolve evidence ref before opening the batch ──────────────────────────

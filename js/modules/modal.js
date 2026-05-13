@@ -2,7 +2,7 @@
 // All unit detail modal logic: open/close, status, photos, location, venue assignment.
 
 import { state }                                    from './state.js';
-import { STATUSES, STATUS_LABELS, VENUES, ZONE_OPTIONS,
+import { VENUES, ZONE_OPTIONS,
          COLLECTION, CLOUDINARY_PRESET, CLOUDINARY_UPLOAD_URL,
          EMAILJS_SERVICE, EMAILJS_TEMPLATE, NOTIFY_EMAIL } from './config.js';
 import { showToast }                                from './toast.js';
@@ -20,17 +20,13 @@ export function openModal(id) {
   cb.textContent = (d.controller === 'Navori' || d.platform === 'Navori') ? 'POPA' : d.controller;
   cb.className = `modal-ctrl-badge ${d.platform}`;
 
-  const steps = document.querySelectorAll('.status-step');
-  const ci    = STATUS_LABELS.indexOf(d.status);
-  steps.forEach((s, i) => {
-    s.classList.remove('current', 'done');
-    const sc = STATUSES[i];
-    s.style.background   = sc.bg;
-    s.style.color        = sc.color;
-    s.style.borderColor  = 'transparent';
-    if (i === ci) { s.classList.add('current'); s.style.borderColor = sc.color; }
-    else if (i < ci) { s.classList.add('done'); }
-  });
+  const isInstalled = d.installed === true;
+  const btnIn  = document.getElementById('btn-installed');
+  const btnOut = document.getElementById('btn-not-installed');
+  const green  = { background: 'rgba(34,197,94,.2)', color: 'var(--s4)', borderColor: 'var(--s4)' };
+  const gray   = { background: 'rgba(85,85,85,.2)',  color: 'var(--s0)', borderColor: 'var(--s0)' };
+  if (btnIn)  { btnIn.classList.toggle('current', isInstalled);   Object.assign(btnIn.style,  isInstalled  ? green : { background:'', color:'', borderColor:'' }); }
+  if (btnOut) { btnOut.classList.toggle('current', !isInstalled);  Object.assign(btnOut.style, !isInstalled ? gray  : { background:'', color:'', borderColor:'' }); }
 
   const setF = (elId, v) => {
     const el    = document.getElementById(elId);
@@ -128,60 +124,50 @@ export async function loadChangelog(unitId) {
 }
 
 // ── STATUS ────────────────────────────────────────────────────────────────────
-export function setStatus(idx) {
+export function setInstalled(installed) {
   if (state.isReadOnly) { showToast('🔒 View only mode'); return; }
   if (!state.currentModalId) return;
-  const newStatus = STATUS_LABELS[idx];
-
   const d = state.DATA.find(x => x.id === state.currentModalId);
-  if (d) {
-    const currentIdx = STATUS_LABELS.indexOf(d.status);
-    if (currentIdx === 4 && idx < 4) {
-      if (!confirm(`Move back from "Installed at Venue" to "${newStatus}"?`)) return;
-    }
-  }
+  if (!d) return;
 
-  if (newStatus === 'Installed at Venue') {
-    const existing = d?.technician && d.technician !== '—' ? d.technician : (state.currentUser || '');
+  if ((d.installed === true) === installed) return;
+
+  if (installed) {
+    const existing = d.technician && d.technician !== '—' ? d.technician : (state.currentUser || '');
     document.getElementById('tech-name-input').value = existing;
     document.getElementById('tech-modal').style.display = 'flex';
-    window._pendingInstallIdx    = idx;
-    window._pendingInstallStatus = newStatus;
   } else {
-    _confirmStatus(idx, newStatus, null);
+    if (!confirm('Mark this unit as Not Installed?')) return;
+    _confirmInstall(false, null);
   }
 }
 
-export async function _confirmStatus(idx, newStatus, technician) {
-  const sc = STATUSES[idx];
-
-  document.querySelectorAll('.status-step').forEach((s, i) => {
-    s.classList.remove('current', 'done');
-    const c = STATUSES[i];
-    s.style.background = c.bg; s.style.color = c.color; s.style.borderColor = 'transparent';
-    if (i === idx) { s.classList.add('current'); s.style.borderColor = c.color; }
-    else if (i < idx) { s.classList.add('done'); }
-  });
+async function _confirmInstall(installed, technician) {
+  const newStatus = installed ? 'Installed at Venue' : 'Not Installed';
+  const btnIn  = document.getElementById('btn-installed');
+  const btnOut = document.getElementById('btn-not-installed');
+  if (btnIn)  { btnIn.classList.toggle('current', installed);   btnIn.style.background  = installed  ? 'rgba(34,197,94,.2)' : ''; btnIn.style.color  = installed  ? 'var(--s4)' : ''; btnIn.style.borderColor  = installed  ? 'var(--s4)' : ''; }
+  if (btnOut) { btnOut.classList.toggle('current', !installed);  btnOut.style.background = !installed ? 'rgba(85,85,85,.2)'  : ''; btnOut.style.color = !installed ? 'var(--s0)' : ''; btnOut.style.borderColor = !installed ? 'var(--s0)' : ''; }
   const sv = document.getElementById('m-status-val');
-  if (sv) { sv.textContent = newStatus; sv.style.color = sc.color; }
+  if (sv) { sv.textContent = newStatus; sv.style.color = installed ? 'var(--s4)' : 'var(--s0)'; }
 
+  const ts = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const updateData = {
-    status:         newStatus,
+    installed,
     updatedBy:      state.currentUser  || 'Unknown',
     updatedByEmail: state.currentEmail || '',
     updatedAt:      firebase.firestore.FieldValue.serverTimestamp(),
+    [`log_${Date.now()}`]: `${newStatus} — ${technician || state.currentUser || '—'} · ${ts}`,
   };
   if (technician) updateData.technician = technician;
 
   const d = state.DATA.find(x => x.id === state.currentModalId);
-  const ts = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  updateData[`log_${Date.now()}`] = `${newStatus} — ${technician || state.currentUser || '—'} · ${ts}`;
-  if (d) { d.status = newStatus; if (technician) d.technician = technician; }
+  if (d) { d.installed = installed; d.status = newStatus; if (technician) d.technician = technician; }
 
   try {
     await safeUpdate(state.currentModalId, updateData);
     showToast(`✓ ${newStatus}`);
-    if (newStatus === 'Installed at Venue') {
+    if (installed) {
       const d2 = state.DATA.find(x => x.id === state.currentModalId);
       if (d2) setTimeout(() => sendInstallNotification(d2), 1500);
     }
@@ -215,129 +201,10 @@ export async function sendInstallNotification(unit) {
 
 // ── TECH CONFIRMATION MODAL ───────────────────────────────────────────────────
 export function confirmTechModal() {
-  const name   = document.getElementById('tech-name-input').value.trim() || 'Not specified';
+  const name = document.getElementById('tech-name-input').value.trim() || 'Not specified';
   document.getElementById('tech-modal').style.display = 'none';
-
-  const idx       = window._pendingInstallIdx;
-  const newStatus = window._pendingInstallStatus;
-  const unitId    = state.currentModalId;
-  if (!unitId) return;
-
-  const unit    = state.DATA.find(x => x.id === unitId) || {};
-  const serial  = unit.digitalHeader || unitId;
-  const model   = unit.model         || '—';
-  const venueKey = unit.venue        || '—';
-  const zoneKey  = unit.venueArea    || '—';
-  const section  = unit.section      || '—';
-  const location = unit.location     || '—';
-
-  const venue      = VENUES[venueKey]?.name?.split('—')[0].trim() || venueKey;
-  const venueAreas = VENUES[venueKey]?.areas || [];
-  const zone       = venueAreas.find(a => a.id === zoneKey)?.label || zoneKey;
-
-  const sc = STATUSES[idx];
-
-  document.querySelectorAll('.status-step').forEach((s, i) => {
-    s.classList.remove('current', 'done');
-    const c = STATUSES[i];
-    s.style.background = c.bg; s.style.color = c.color; s.style.borderColor = 'transparent';
-    if (i === idx) { s.classList.add('current'); s.style.borderColor = c.color; }
-    else if (i < idx) { s.classList.add('done'); }
-  });
-  const sv = document.getElementById('m-status-val');
-  if (sv) { sv.textContent = newStatus; sv.style.color = sc.color; }
-
-  if (unit) { unit.status = newStatus; unit.technician = name; }
-
-  const ts = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const updateData = {
-    status:    newStatus,
-    technician: name,
-    [`log_${Date.now()}`]: `${newStatus} — ${name} · ${ts}`,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  };
-
-  state.db.collection(COLLECTION).doc(unitId).update(updateData)
-    .then(() => {
-      showToast('✓ Installed at Venue — ' + name);
-      renderAll();
-      setTimeout(async () => {
-        const installed = state.DATA.filter(d => d.status === 'Installed at Venue').length;
-        const total     = state.DATA.length;
-
-        let photoEmailUrl = '';
-        try {
-          showToast('📷 Looking for photo...');
-          const snap = await state.db.collection(COLLECTION).doc(unitId).collection('photos').limit(1).get();
-          showToast('📸 Docs found: ' + snap.size);
-          if (!snap.empty) {
-            const rawUrl  = snap.docs[0].data().url;
-            const smallUrl = rawUrl.replace('/upload/', '/upload/w_300,h_300,c_fill,q_40,f_jpg/');
-            try {
-              const imgRes = await fetch(smallUrl);
-              const blob   = await imgRes.blob();
-              const b64    = await new Promise(r => {
-                const reader = new FileReader();
-                reader.onload = () => r(reader.result);
-                reader.readAsDataURL(blob);
-              });
-              photoEmailUrl = `<img src="${b64}" width="300" style="border-radius:8px;max-width:100%;display:block;margin-top:8px">`;
-            } catch {
-              photoEmailUrl = `<img src="${smallUrl}" width="300" style="border-radius:8px;max-width:100%;display:block;margin-top:8px">`;
-            }
-          }
-        } catch (e) { showToast('❌ Photo error: ' + e.message); }
-
-        const msgBody = `<div style="font-family:Arial,sans-serif;max-width:580px;color:#111">
-          <div style="background:#F40009;padding:16px 20px;border-radius:8px 8px 0 0">
-            <h2 style="color:#fff;margin:0;font-size:16px">✅ Unit Installed at POS</h2>
-            <p style="color:rgba(255,255,255,.8);margin:4px 0 0;font-size:11px">Coca-Cola Liberty · FIFA World Cup 2026</p>
-          </div>
-          <div style="background:#f9f9f9;padding:16px 20px;border:1px solid #eee">
-            <table style="width:100%;border-collapse:collapse">
-              <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888;width:120px">Serial</td><td style="padding:5px 8px;font-size:13px;font-weight:700">${serial}</td></tr>
-              <tr style="background:#fff"><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Venue</td><td style="padding:5px 8px;font-size:12px">${venue}</td></tr>
-              <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Zone</td><td style="padding:5px 8px;font-size:12px">${zone}</td></tr>
-              <tr style="background:#fff"><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Section</td><td style="padding:5px 8px;font-size:12px">${section}</td></tr>
-              <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Location</td><td style="padding:5px 8px;font-size:12px">${location}</td></tr>
-              <tr style="background:#fff"><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Technician</td><td style="padding:5px 8px;font-size:12px;font-weight:600">${name}</td></tr>
-              <tr><td style="padding:5px 8px;font-weight:600;font-size:11px;text-transform:uppercase;color:#888">Time</td><td style="padding:5px 8px;font-size:12px">${ts}</td></tr>
-            </table>
-            <div style="background:#e8f5e9;border-radius:6px;padding:10px 14px;margin:12px 0;text-align:center">
-              <span style="font-size:14px;font-weight:700;color:#2e7d32">${installed} / ${total} units installed</span>
-            </div>
-            <div style="margin-top:12px">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;letter-spacing:1px">Photo evidence</div>
-              ${photoEmailUrl}
-            </div>
-          </div>
-          <div style="padding:10px 20px;background:#f0f0f0;border-radius:0 0 8px 8px;text-align:center">
-            <span style="font-size:9px;color:#aaa">POP Atelier LLC · popatelier.net</span>
-          </div>
-        </div>`;
-
-        emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
-          unit_serial:     serial,
-          unit_model:      model,
-          venue:           venue,
-          zone:            zone,
-          location:        location,
-          technician:      name,
-          timestamp:       ts,
-          total_installed: String(installed),
-          total_units:     String(total),
-          photo_html:      photoEmailUrl,
-          title:           '✅ Installed — ' + serial,
-          name:            name,
-          email:           NOTIFY_EMAIL,
-        }).then(r => {
-          showToast('📧 Email sent (' + r.status + ')');
-        }).catch(e => {
-          showToast('⚠ Email: ' + (e.text || e.message || 'error'));
-        });
-      }, 2000);
-    })
-    .catch(e => showToast('⚠ Error: ' + e.message));
+  if (!state.currentModalId) return;
+  _confirmInstall(true, name);
 }
 
 export function cancelTechModal() {
