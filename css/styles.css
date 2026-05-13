@@ -122,8 +122,6 @@ body {
   background:var(--s4); animation:pulse 2.2s infinite;
 }
 
-#excel-input { display:none; }
-
 /* ── TABS ────────────────────────────────────────────────────── */
 .tabs { display:flex; gap:6px; padding:12px 0 0; flex:1; }
 .tab {
@@ -549,50 +547,6 @@ body {
   color:var(--text-muted); cursor:pointer; font-family:var(--mono); transition:all .15s;
 }
 .map-unit-chip:hover { border-color:var(--border-strong); color:var(--text); }
-
-/* ── IMPORT OVERLAY ──────────────────────────────────────────── */
-.import-overlay {
-  position:fixed; inset:0; z-index:300;
-  background:rgba(0,0,0,.82); backdrop-filter:blur(22px);
-  display:flex; align-items:center; justify-content:center;
-  opacity:0; pointer-events:none; transition:opacity .25s; padding:24px;
-}
-.import-overlay.open { opacity:1; pointer-events:all; }
-
-.import-card {
-  background:var(--card); border:1px solid var(--border);
-  border-radius:20px; padding:32px; width:100%; max-width:440px;
-  box-shadow:var(--shadow-lg);
-}
-.import-title { font-size:18px; font-weight:700; margin-bottom:8px; }
-.import-sub   { font-size:13px; color:var(--text-muted); margin-bottom:22px; line-height:1.7; }
-.import-map   { display:flex; flex-direction:column; gap:8px; margin-bottom:22px; font-size:13px; }
-.import-map-row {
-  display:flex; justify-content:space-between;
-  padding:10px 14px; background:var(--surface); border-radius:9px;
-  border:1px solid var(--border);
-}
-.import-map-key { color:var(--text-sub); font-family:var(--mono); }
-.import-map-val { color:var(--text-muted); }
-
-.import-actions { display:flex; gap:10px; }
-.import-cancel {
-  flex:1; padding:13px; background:var(--surface);
-  border:1px solid var(--border); border-radius:10px;
-  font-family:var(--sans); font-size:13px; font-weight:600;
-  color:var(--text-muted); cursor:pointer; transition:all .15s;
-}
-.import-cancel:hover { border-color:var(--border-strong); color:var(--text); }
-.import-confirm {
-  flex:2; padding:13px; background:var(--navori); border:none;
-  border-radius:10px; font-family:var(--sans); font-size:13px;
-  font-weight:700; color:#fff; cursor:pointer; transition:opacity .15s;
-}
-.import-confirm:hover { opacity:.88; }
-.import-progress {
-  margin-top:16px; font-size:12px; color:var(--text-muted);
-  font-family:var(--mono); text-align:center;
-}
 
 /* ── PIN LOCK ────────────────────────────────────────────────── */
 .pin-overlay {

@@ -27,9 +27,6 @@ import { openModal, closeModal, closeOverlay, loadChangelog,
 
 import { exportExcel, exportPDF }                                    from './modules/export.js';
 
-import { triggerImport, handleExcelFile, confirmImport,
-         closeImportOverlay }                                        from './modules/import.js';
-
 import { openActivityLog, loadActivityLog, filterActivity }          from './modules/activity.js';
 
 import { initAuthGuard, handleSignOut, guardEdit, enterReadOnly,
@@ -73,11 +70,6 @@ window.openAssignModal     = openAssignModal;
 
 window.exportExcel         = exportExcel;
 window.exportPDF           = exportPDF;
-
-window.triggerImport       = triggerImport;
-window.handleExcelFile     = handleExcelFile;
-window.confirmImport       = confirmImport;
-window.closeImportOverlay  = closeImportOverlay;
 
 window.openActivityLog     = openActivityLog;
 window.loadActivityLog     = loadActivityLog;

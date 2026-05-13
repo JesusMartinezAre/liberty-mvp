@@ -87,8 +87,7 @@ export async function handleSignOut() {
   state.filterQ                = '';
   state.currentVenue           = 'metlife';
   state._activityAll           = [];
-  state.importRows             = [];
-  state.fieldMode              = false;
+state.fieldMode              = false;
 
   // Replace (not push) so the Back button cannot return to the dashboard.
   window.location.replace('/auth/login.html');
@@ -105,7 +104,7 @@ export function enterReadOnly() {
   state.currentEmail = '';
   state.isReadOnly   = true;
   document.querySelectorAll(
-    '.status-step, [onclick="saveVenueAssignment()"], #loc-capture-btn, label[for="photo-input"], [onclick="triggerImport()"], #excel-input'
+    '.status-step, [onclick="saveVenueAssignment()"], #loc-capture-btn, label[for="photo-input"]'
   ).forEach(el => { if (el) el.style.display = 'none'; });
   showToast('👁 View only mode');
 }

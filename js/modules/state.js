@@ -32,9 +32,6 @@ export const state = {
   // Photos / lightbox
   currentLightboxPhotoId: null,
 
-  // Import
-  importRows: [],
-
   // Activity log
   _activityAll: [],
 

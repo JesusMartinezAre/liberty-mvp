@@ -27,8 +27,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-<!-- SheetJS for Excel import -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 </head>
 <body>
@@ -144,9 +142,7 @@
 
   <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.8px;color:var(--text-muted);text-transform:uppercase;padding:0 14px 12px;font-family:var(--mono)">Actions</div>
-    <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcelFile(event)">
-    <button class="sidebar-nav-btn" onclick="triggerImport()"><span class="s-icon">⬆</span> Import Excel</button>
-    <button class="sidebar-nav-btn" id="logout-btn-sidebar" style="color:var(--red);margin-top:4px"><span class="s-icon">↩</span> Sign Out</button>
+<button class="sidebar-nav-btn" id="logout-btn-sidebar" style="color:var(--red);margin-top:4px"><span class="s-icon">↩</span> Sign Out</button>
   </div>
 
   <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border)">
@@ -595,20 +591,6 @@
   </div>
 </div>
 
-<!-- IMPORT PREVIEW OVERLAY -->
-<div class="import-overlay" id="import-overlay">
-  <div class="import-card">
-    <button class="modal-close" onclick="closeImportOverlay()" style="float:right;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;color:var(--text-muted);cursor:pointer">Cancel</button>
-    <div class="import-title">Import Excel</div>
-    <div class="import-sub" id="import-sub">Map your Excel columns to inventory fields. The import will match by Digital Header S/N and update only the rows found.</div>
-    <div class="import-map" id="import-map"></div>
-    <div class="import-actions" id="import-actions">
-      <button class="import-cancel" onclick="closeImportOverlay()">Cancel</button>
-      <button class="import-confirm" onclick="confirmImport()">Import <span id="import-count">0</span> rows</button>
-    </div>
-    <div class="import-progress" id="import-progress"></div>
-  </div>
-</div>
 
 <!-- ACTIVITY LOG MODAL -->
 <div id="activity-modal" style="

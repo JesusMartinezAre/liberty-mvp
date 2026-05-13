@@ -29,9 +29,14 @@ exports.handler = async (event) => {
     const email = (event.queryStringParameters?.email || '').trim().toLowerCase();
 
     // getAuthorizeUrlAsync(RelayState, host, options)
-    // Pass login_hint as an additionalParam so Entra pre-fills the email field.
+    // login_hint  — pre-fills the email field in Entra's UI.
+    // domain_hint — signals HRD to skip the email-entry screen entirely and go
+    //               straight to the password/MFA prompt, even in cold sessions.
+    const domain      = email.includes('@') ? email.split('@')[1] : '';
     const redirectUrl = await saml.getAuthorizeUrlAsync('', '', {
-      additionalParams: email ? { login_hint: email } : {},
+      additionalParams: email
+        ? { login_hint: email, domain_hint: domain }
+        : {},
     });
 
     return appJson(200, { redirectUrl });
