@@ -1,105 +1,15 @@
 // ── FIRESTORE DATA LAYER ───────────────────────────────────────────────────────
-// All Firestore reads, writes, and offline queue management.
+// Real-time listener, write path, and offline queue.
+// Reads come from dataService.js (multi-collection join).
+// Writes target the relational schema: players + evidence_players.
 
-import { state }                    from './state.js';
-import { COLLECTION, OFFLINE_KEY }   from './config.js';
-import { showToast }                 from './toast.js';
-import { renderAll }                 from './render.js';
-import { subscribeToInventory }      from './dataService.js';
-
-// ── BASE DATA ─────────────────────────────────────────────────────────────────
-export function buildBaseData() {
-  const d = [];
-  for (let i = 1; i <= 120; i++) {
-    const n = String(i).padStart(4, '0');
-    d.push({
-      id: `ZIPDHE${n}`, digitalHeader: `ZIPDHE${n}`,
-      model: 'DIGITAL HEADER EXTERIOR 29"',
-      controller: 'POPA', platform: 'POPA',
-      controllerSN: '—', routerSN: '—', simCard: '—', location: '—',
-      ipAddress: '—', macAddress: '—', section: '—', technician: '—', content: '—', notes: '',
-      bottler: 'Coca-Cola Liberty', status: 'In Assembly', updatedAt: null,
-    });
-  }
-  for (let i = 1; i <= 30; i++) {
-    const n = String(i).padStart(4, '0');
-    d.push({
-      id: `ZIPKDHI${n}`, digitalHeader: `ZIPKDHI${n}`,
-      model: 'DIGITAL HEADER INTERIOR 29"',
-      controller: 'KOS / Tier One', platform: 'KOS',
-      controllerSN: '—', routerSN: '—', simCard: '—', location: '—',
-      ipAddress: '—', macAddress: '—', section: '—', technician: '—', content: '—', notes: '',
-      bottler: 'Coca-Cola Liberty', status: 'In Assembly', updatedAt: null,
-    });
-  }
-  return d;
-}
-
-// ── EXCEL SEED ────────────────────────────────────────────────────────────────
-export const EXCEL_SEED = [
-  { "id": "ZIPDHE0088", "simCard": "94960504",  "routerSN": "RF3022533645284", "controllerSN": "S380020250801556",       "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0096", "simCard": "94962286",  "routerSN": "RF3022533645227", "controllerSN": "S38002020250402361",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0120", "simCard": "94961072",  "routerSN": "RF3022533645034", "controllerSN": "S38002020250402365",     "location": "NYNj", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0010", "simCard": "94960512",  "routerSN": "RF3022533645346", "controllerSN": "S38002020250402370",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0090", "simCard": "94962252",  "routerSN": "RF3022533645235", "controllerSN": "S38002020250402373",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0027", "simCard": "94960991",  "routerSN": "RF3022530636387", "controllerSN": "S38002020250402374",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0084", "simCard": "94962237",  "routerSN": "RF3022530636565", "controllerSN": "S38002020250402377",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0025", "simCard": "94962179",  "routerSN": "RF3022533644896", "controllerSN": "S38002020250402378",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0086", "simCard": "94960538",  "routerSN": "RF3022533645287", "controllerSN": "S38002020250402061",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0005", "simCard": "94962161",  "routerSN": "RF3022533645081", "controllerSN": "S38002020250402062",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0058", "simCard": "94960710",  "routerSN": "RF3022533645121", "controllerSN": "S38002020250402074",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0112", "simCard": "94960595",  "routerSN": "RF3022533645250", "controllerSN": "S38002020250402076",     "location": "—",    "venue": "—",       "content": "—"    },
-  { "id": "ZIPDHE0070", "simCard": "94960918",  "routerSN": "RF3022530636379", "controllerSN": "S38002020250402463",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0113", "simCard": "94962245",  "routerSN": "RF3022533645268", "controllerSN": "S38002020250402465",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0021", "simCard": "94926153",  "routerSN": "RF3022533645036", "controllerSN": "S38002020250402466",     "location": "—",    "venue": "—",       "content": "—"    },
-  { "id": "ZIPDHE0020", "simCard": "94960728",  "routerSN": "RF3022533644906", "controllerSN": "S38002020250402467",     "location": "—",    "venue": "—",       "content": "—"    },
-  { "id": "ZIPDHE0008", "simCard": "94960983",  "routerSN": "RF3022530636249", "controllerSN": "S38002020250402468",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0098", "simCard": "94960199",  "routerSN": "RF3022533644920", "controllerSN": "S38002020250402469",     "location": "—",    "venue": "—",       "content": "—"    },
-  { "id": "ZIPDHE0023", "simCard": "94960553",  "routerSN": "RF3022533645120", "controllerSN": "S38002020250402473",     "location": "—",    "venue": "—",       "content": "—"    },
-  { "id": "ZIPDHE0013", "simCard": "94960660",  "routerSN": "RF3022533645256", "controllerSN": "S38002020250402475",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0034", "simCard": "94960967",  "routerSN": "RF3022533645204", "controllerSN": "S38002020250402478",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0031", "simCard": "94960520",  "routerSN": "RF3022533645276", "controllerSN": "S38002020250402479",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-  { "id": "ZIPDHE0055", "simCard": "94960611",  "routerSN": "RF3022533645261", "controllerSN": "S38002020250402480",     "location": "NYNJ", "venue": "metlife", "content": "NYNJ" },
-];
-
-// ── SEED FUNCTIONS ────────────────────────────────────────────────────────────
-export async function applySeedData() {
-  const flag = localStorage.getItem('liberty_seed_v2');
-  if (flag) return;
-  console.log('Applying Excel seed data...');
-  const batch = state.db.batch();
-  EXCEL_SEED.forEach(u => {
-    const ref = state.db.collection(COLLECTION).doc(u.id);
-    const upd = {};
-    if (u.simCard      && u.simCard      !== '—') upd.simCard      = u.simCard;
-    if (u.routerSN     && u.routerSN     !== '—') upd.routerSN     = u.routerSN;
-    if (u.controllerSN && u.controllerSN !== '—') upd.controllerSN = u.controllerSN;
-    if (u.location     && u.location     !== '—') upd.location     = u.location;
-    if (u.venue        && u.venue        !== '—') upd.venue        = u.venue;
-    if (u.content      && u.content      !== '—') upd.content      = u.content;
-    if (Object.keys(upd).length) batch.update(ref, upd);
-  });
-  await batch.commit();
-  localStorage.setItem('liberty_seed_v2', '1');
-  console.log('Seed applied:', EXCEL_SEED.length, 'records');
-}
-
-export async function seedIfEmpty() {
-  const snap = await state.db.collection(COLLECTION).limit(1).get();
-  if (!snap.empty) return;
-  showToast('Seeding 150 units…');
-  const batch = state.db.batch();
-  buildBaseData().forEach(u => {
-    batch.set(state.db.collection(COLLECTION).doc(u.id), u);
-  });
-  await batch.commit();
-  showToast('✓ 150 units loaded');
-}
+import { state }                from './state.js';
+import { OFFLINE_KEY }          from './config.js';
+import { showToast }            from './toast.js';
+import { renderAll }            from './render.js';
+import { subscribeToInventory } from './dataService.js';
 
 // ── REAL-TIME LISTENER ────────────────────────────────────────────────────────
-// Delegates to dataService.subscribeToInventory which joins players + venues +
-// evidence_players and adapts the result to the legacy flat shape state.DATA
-// expects. Returns the unsubscribe handle (call on sign-out if needed).
 export function startListener() {
   return subscribeToInventory(items => {
     state.DATA = items;
@@ -107,15 +17,87 @@ export function startListener() {
   });
 }
 
-// ── OFFLINE QUEUE ─────────────────────────────────────────────────────────────
-export function getQueue() {
-  try { return JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]'); } catch (e) { return []; }
+// ── SEED STUB ─────────────────────────────────────────────────────────────────
+// Seeding now happens directly in Firestore (players / venues collections).
+// Stub kept so auth.js call site requires no change.
+export async function seedIfEmpty() {}
+
+// ── FIELD ROUTING ─────────────────────────────────────────────────────────────
+// Fields that belong to evidence_players; everything else goes to players.
+const EVIDENCE_FIELDS = new Set(['photos', 'notes', 'changeHistory']);
+
+// Legacy flat-format field names that differ from the new schema field names.
+const TO_PLAYER_FIELD = {
+  model: 'product',  // legacy.model → players.product
+  venue: 'venueId',  // legacy.venue → players.venueId (slug is the ref)
+};
+
+// ── RELATIONAL WRITE ──────────────────────────────────────────────────────────
+// Splits a flat legacy update object into players + evidence_players and
+// commits both as a single atomic batch.
+//
+// The evidence query (finding the doc by playerId) runs before the batch so
+// the ref is resolved — Firestore batch writes require known refs up front.
+async function _writeToRelational(docId, data) {
+  const db = state.db;
+  const ts = firebase.firestore.FieldValue.serverTimestamp();
+
+  const playerFields   = {};
+  const evidenceFields = {};
+
+  for (const [k, v] of Object.entries(data)) {
+    if (EVIDENCE_FIELDS.has(k)) {
+      evidenceFields[k] = v;
+    } else {
+      playerFields[TO_PLAYER_FIELD[k] ?? k] = v;
+    }
+  }
+
+  // Derive the boolean installed flag from the pipeline status string.
+  if (playerFields.status !== undefined) {
+    playerFields.installed = playerFields.status === 'Installed at Venue';
+  }
+
+  playerFields.updatedAt = ts;
+
+  // ── Resolve evidence ref before opening the batch ──────────────────────────
+  let evRef  = null;
+  let evIsNew = false;
+
+  if (Object.keys(evidenceFields).length > 0) {
+    const evSnap = await db.collection('evidence_players')
+      .where('playerId', '==', docId)
+      .limit(1)
+      .get();
+
+    if (evSnap.empty) {
+      evRef   = db.collection('evidence_players').doc(); // auto-ID
+      evIsNew = true;
+    } else {
+      evRef = evSnap.docs[0].ref;
+    }
+
+    evidenceFields.playerId  = docId;
+    evidenceFields.updatedAt = ts;
+  }
+
+  // ── Atomic batch ──────────────────────────────────────────────────────────
+  const batch = db.batch();
+
+  batch.update(db.collection('players').doc(docId), playerFields);
+
+  if (evRef) {
+    if (evIsNew) {
+      batch.set(evRef, evidenceFields);
+    } else {
+      batch.update(evRef, evidenceFields);
+    }
+  }
+
+  await batch.commit();
 }
 
-export function saveQueue(q) {
-  localStorage.setItem(OFFLINE_KEY, JSON.stringify(q));
-}
-
+// ── SAFE UPDATE ───────────────────────────────────────────────────────────────
 export async function safeUpdate(docId, data) {
   const offlineData = { ...data };
   delete offlineData.updatedAt;
@@ -125,15 +107,23 @@ export async function safeUpdate(docId, data) {
     const q = getQueue();
     q.push({ docId, data: offlineData, ts: Date.now() });
     saveQueue(q);
+    // Optimistic in-memory update so the UI reflects the change immediately.
     const d = state.DATA.find(x => x.id === docId);
     if (d) Object.assign(d, offlineData);
     showToast('📶 Saved offline — will sync when online');
     return;
   }
-  await state.db.collection(COLLECTION).doc(docId).update({
-    ...data,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  });
+
+  await _writeToRelational(docId, data);
+}
+
+// ── OFFLINE QUEUE ─────────────────────────────────────────────────────────────
+export function getQueue() {
+  try { return JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]'); } catch { return []; }
+}
+
+export function saveQueue(q) {
+  localStorage.setItem(OFFLINE_KEY, JSON.stringify(q));
 }
 
 export async function syncOfflineQueue() {
@@ -144,12 +134,12 @@ export async function syncOfflineQueue() {
   const failed = [];
   for (const item of q) {
     try {
-      await state.db.collection(COLLECTION).doc(item.docId).update({
-        ...item.data,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      await _writeToRelational(item.docId, item.data);
       synced++;
-    } catch (e) { failed.push(item); }
+    } catch (err) {
+      console.error('[api] syncOfflineQueue failed for', item.docId, err);
+      failed.push(item);
+    }
   }
   saveQueue(failed);
   if (synced > 0) showToast(`✓ ${synced} changes synced`);
