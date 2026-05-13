@@ -50,11 +50,14 @@ export function renderKPIs() {
   animCount(document.getElementById('k-kos'),      kos);
   animCount(document.getElementById('k-installed'), inst);
   document.getElementById('tab-total').textContent = total;
-  const pct = total > 0 ? Math.round(inst / total * 100) : 0;
-  const pb  = document.getElementById('global-progress-bar');
-  const pt  = document.getElementById('global-progress-text');
-  if (pb) pb.style.width = pct + '%';
-  if (pt) pt.textContent = `${inst}/${total} installed`;
+  const pct  = total > 0 ? Math.round(inst / total * 100) : 0;
+  const text = `${inst}/${total} installed`;
+  const pb   = document.getElementById('global-progress-bar');
+  const pt   = document.getElementById('global-progress-text');
+  const pts  = document.getElementById('global-progress-text-side');
+  if (pb)  pb.style.width  = pct + '%';
+  if (pt)  pt.textContent  = text;
+  if (pts) pts.textContent = text;
 }
 
 // ── PIPELINE ──────────────────────────────────────────────────────────────────
@@ -177,9 +180,6 @@ export function updateSidebarCounts() {
   const t2 = document.getElementById('tab-filtered');
   if (s1 && t1) s1.textContent = t1.textContent;
   if (s2 && t2) s2.textContent = t2.textContent;
-  const sp = document.getElementById('global-progress-text-side');
-  const gp = document.getElementById('global-progress-text');
-  if (sp && gp) sp.textContent = gp.textContent;
 }
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────

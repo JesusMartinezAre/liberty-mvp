@@ -90,7 +90,7 @@ body {
   position:sticky; top:0; z-index:100;
   background:var(--card);          /* solid — no bleed-through on scroll */
   border-bottom:1px solid var(--border);
-  padding:16px 24px 0;
+  padding:10px 24px 0;
 }
 .header-row1 {
   display:flex; align-items:center;
@@ -122,24 +122,6 @@ body {
   background:var(--s4); animation:pulse 2.2s infinite;
 }
 
-/* Override tiny import/logout button inline font sizes */
-.import-btn,
-#logout-btn {
-  font-size:11px !important;
-  padding:7px 14px !important;
-}
-.import-btn {
-  display:flex; align-items:center; gap:7px;
-  border-radius:9px; margin-left:auto;
-  background:var(--surface); border:1px solid var(--border);
-  font-family:var(--sans); font-weight:600;
-  letter-spacing:.4px; color:var(--text-sub);
-  cursor:pointer; transition:all .2s; white-space:nowrap; flex-shrink:0;
-}
-.import-btn:hover {
-  border-color:var(--border-strong);
-  color:var(--text); background:var(--card-hover);
-}
 #excel-input { display:none; }
 
 /* ── TABS ────────────────────────────────────────────────────── */

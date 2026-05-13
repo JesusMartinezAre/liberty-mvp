@@ -105,7 +105,7 @@ export function enterReadOnly() {
   state.currentEmail = '';
   state.isReadOnly   = true;
   document.querySelectorAll(
-    '.status-step, [onclick="saveVenueAssignment()"], #loc-capture-btn, label[for="photo-input"], .import-btn, #excel-input'
+    '.status-step, [onclick="saveVenueAssignment()"], #loc-capture-btn, label[for="photo-input"], [onclick="triggerImport()"], #excel-input'
   ).forEach(el => { if (el) el.style.display = 'none'; });
   showToast('👁 View only mode');
 }
