@@ -172,10 +172,10 @@ export function renderList() {
 
 // ── VENUE PROGRESS ────────────────────────────────────────────────────────────
 export function updateVenueProgress() {
-  ['metlife', 'lincoln', 'rockefeller'].forEach(v => {
-    const total     = state.DATA.filter(d => d.venue === v).length;
-    const installed = state.DATA.filter(d => d.venue === v && d.status === 'Installed at Venue').length;
-    const el        = document.getElementById('venue-progress-' + v);
+  getVenues().forEach(v => {
+    const total     = state.DATA.filter(d => d.venue === v.id).length;
+    const installed = state.DATA.filter(d => d.venue === v.id && d.installed === true).length;
+    const el        = document.getElementById('venue-progress-' + v.id);
     if (el) el.textContent = `${installed}/${total} installed`;
   });
 }
