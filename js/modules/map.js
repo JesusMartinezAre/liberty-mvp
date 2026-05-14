@@ -49,7 +49,7 @@ function _attachImgHandlers(mapImg, imageUrl) {
 // image: update only the imageUrl string for that venue — nothing else changes.
 const VENUE_CONFIG = {
   metlife: {
-    imageUrl: '/assets/maps/metlife.jpg',
+    imageUrl: '/assets/maps/metlife.png',
     pins: {
       '100-north': { x:525, y:193, label:'100s North' },
       '100-south': { x:525, y:423, label:'100s South' },
@@ -81,7 +81,7 @@ const VENUE_CONFIG = {
   },
 
   lincoln: {
-    imageUrl: '/assets/maps/lincoln.jpg',
+    imageUrl: '/assets/maps/lincoln.png',
     pins: {
       '100-north': { x:490, y:188, label:'100s North' },
       '100-south': { x:490, y:420, label:'100s South' },
@@ -113,7 +113,7 @@ const VENUE_CONFIG = {
   },
 
   rockefeller: {
-    imageUrl: '/assets/maps/rockefeller.jpg',
+    imageUrl: '/assets/maps/rockefeller.png',
     pins: {
       'plaza-main':      { x:295, y:415, label:'Main Plaza'       },
       'plaza-north':     { x:295, y:265, label:'North Plaza'      },
