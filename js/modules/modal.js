@@ -28,19 +28,30 @@ function _openTechModal(action, subtitle, btnLabel, payload = null) {
   document.getElementById('tech-modal').style.display = 'flex';
 }
 
-// ── VENUE DATALIST ────────────────────────────────────────────────────────────
-function populateVenueDatalist() {
-  const dl = document.getElementById('venue-datalist');
-  if (!dl) return;
-  const known    = getVenues();
-  const knownIds = new Set(known.map(v => v.id));
-  const freeform = [...new Set(
-    state.DATA.map(d => d.venue).filter(v => v && v !== '—' && !knownIds.has(v))
-  )];
-  dl.innerHTML = [
-    ...known.map(v    => `<option value="${v.name}">`),
-    ...freeform.map(v => `<option value="${v}">`),
-  ].join('');
+// ── VENUE + ZONE DATALISTS ────────────────────────────────────────────────────
+function populateSuggestions() {
+  // Venue — Firestore venues collection first, then any freeform values in the dataset
+  const venueDl = document.getElementById('venue-datalist');
+  if (venueDl) {
+    const known    = getVenues();
+    const knownIds = new Set(known.map(v => v.id));
+    const freeform = [...new Set(
+      state.DATA.map(d => d.venue).filter(v => v && v !== '—' && !knownIds.has(v))
+    )];
+    venueDl.innerHTML = [
+      ...known.map(v    => `<option value="${v.name}">`),
+      ...freeform.map(v => `<option value="${v}">`),
+    ].join('');
+  }
+
+  // Zone — unique non-empty zone strings already present in the dataset, sorted
+  const zoneDl = document.getElementById('zone-suggestions');
+  if (zoneDl) {
+    const zones = [...new Set(
+      state.DATA.map(d => d.zone).filter(z => z && z !== '—')
+    )].sort();
+    zoneDl.innerHTML = zones.map(z => `<option value="${z}">`).join('');
+  }
 }
 
 // ── OPEN / CLOSE ──────────────────────────────────────────────────────────────
@@ -102,7 +113,7 @@ export function openModal(id) {
   setF('m-content',    d.content);
   document.getElementById('m-notes').value = d.notes || '';
 
-  populateVenueDatalist();
+  populateSuggestions();
   const venueInput = document.getElementById('m-venue-sel');
   const rawVenue   = (d.venue && d.venue !== '—') ? d.venue : '';
   const knownVenue = rawVenue ? getVenues().find(v => v.id === rawVenue) : null;
