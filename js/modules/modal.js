@@ -13,8 +13,9 @@ import { getVenues }                                from './dataService.js';
 // ── PENDING ACTION DISPATCHER ─────────────────────────────────────────────────
 // Holds the deferred action type and its captured payload so the tech modal
 // can confirm any write operation — not just installations.
-let _pendingAction  = null;   // 'install' | 'venue' | 'notes'
-let _pendingPayload = null;
+let _pendingAction     = null;   // 'install' | 'venue' | 'notes'
+let _pendingPayload    = null;
+let _uploadInProgress  = false;
 
 function _openTechModal(action, subtitle, btnLabel, payload = null) {
   const d = state.DATA.find(x => x.id === state.currentModalId);
@@ -437,20 +438,24 @@ export async function clearLocation() {
 
 // ── PHOTO EVIDENCE ────────────────────────────────────────────────────────────
 export async function uploadPhoto(e) {
+  if (_uploadInProgress) { showToast('⏳ Upload already in progress…'); return; }
   if (!state.currentModalId) { showToast('No unit selected'); return; }
   const file = e.target.files[0];
   if (!file) return;
 
+  const modalId    = state.currentModalId;
+  _uploadInProgress = true;
+  const photoInput  = document.getElementById('photo-input');
+  if (photoInput) { photoInput.disabled = true; photoInput.value = ''; }
   document.getElementById('photo-uploading').style.display = 'block';
-  document.getElementById('photo-input').value = '';
 
   try {
     const compressed = await compressImage(file, 1200, 0.75);
     const formData   = new FormData();
     formData.append('file',           compressed);
     formData.append('upload_preset',  CLOUDINARY_PRESET);
-    formData.append('folder',         `liberty/${state.currentModalId}`);
-    formData.append('public_id',      `${state.currentModalId}_${Date.now()}`);
+    formData.append('folder',         `liberty/${modalId}`);
+    formData.append('public_id',      `${modalId}_${Date.now()}`);
 
     const res = await fetch(CLOUDINARY_UPLOAD_URL, { method: 'POST', body: formData });
     if (!res.ok) throw new Error('Upload failed');
@@ -463,13 +468,13 @@ export async function uploadPhoto(e) {
       height:     data.height,
       bytes:      data.bytes,
       uploadedAt: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      unit:       state.currentModalId,
+      unit:       modalId,
     };
 
     const db         = state.db;
     const FieldValue = firebase.firestore.FieldValue;
     const evSnap     = await db.collection('evidence_players')
-      .where('playerId', '==', state.currentModalId)
+      .where('playerId', '==', modalId)
       .limit(1)
       .get();
 
@@ -477,26 +482,27 @@ export async function uploadPhoto(e) {
       await evSnap.docs[0].ref.update({ photos: FieldValue.arrayUnion(photo) });
     } else {
       await db.collection('evidence_players').add({
-        playerId:      state.currentModalId,
+        playerId:      modalId,
         photos:        [photo],
         notes:         '',
         changeHistory: [],
       });
     }
 
-    // Optimistically update state.DATA so the grid reflects the new photo immediately,
-    // before the Firestore real-time listener has a chance to re-emit.
-    const d = state.DATA.find(x => x.id === state.currentModalId);
+    const d = state.DATA.find(x => x.id === modalId);
     if (d) {
       d.photos = [...(d.photos || []), photo];
       _renderPhotos(d.photos);
     }
-    await logChange(state.currentModalId, 'Photo added', state.currentUser);
+    await logChange(modalId, 'Photo added', state.currentUser);
     showToast('✓ Photo uploaded');
   } catch (err) {
     showToast('⚠ Upload failed');
     console.error(err);
   } finally {
+    _uploadInProgress = false;
+    const input = document.getElementById('photo-input');
+    if (input) input.disabled = false;
     document.getElementById('photo-uploading').style.display = 'none';
   }
 }
