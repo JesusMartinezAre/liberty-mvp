@@ -6,6 +6,39 @@ import { getVenues }         from './dataService.js';
 import { showToast }         from './toast.js';
 import { openModal }         from './modal.js';
 
+// ── MAP IMAGE ERROR HANDLER ───────────────────────────────────────────────────
+// Attaches onerror / onload to the base map <img>. Called both on venue switch
+// and on initial render so the MetLife image (src set in HTML) is also covered.
+function _attachImgHandlers(mapImg, imageUrl) {
+  mapImg.onerror = () => {
+    mapImg.onerror          = null;          // prevent infinite retry loops
+    mapImg.style.visibility = 'hidden';
+    mapImg.style.minHeight  = '240px';
+    const wrapper = mapImg.parentElement;
+    if (!wrapper) return;
+    wrapper.querySelector('.map-ph')?.remove();
+    const ph = document.createElement('div');
+    ph.className   = 'map-ph';
+    ph.style.cssText = [
+      'position:absolute;inset:0;z-index:1;pointer-events:none;',
+      'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;',
+      'background:var(--surface);border-radius:8px;',
+      'color:var(--text-muted);font-family:var(--mono);font-size:12px;',
+    ].join('');
+    ph.innerHTML = [
+      '<div style="font-size:40px;opacity:.2">🗺</div>',
+      '<div style="font-weight:700;color:var(--text-sub)">Map image not found</div>',
+      `<div style="font-size:10px;opacity:.5">${imageUrl}</div>`,
+    ].join('');
+    wrapper.appendChild(ph);
+  };
+  mapImg.onload = () => {
+    mapImg.style.visibility = '';
+    mapImg.style.minHeight  = '';
+    mapImg.parentElement?.querySelector('.map-ph')?.remove();
+  };
+}
+
 // ── VENUE CONFIGURATION ───────────────────────────────────────────────────────
 // Single source of truth for each venue's seating chart image, SVG pin
 // coordinates, and Areas & Units list.
@@ -109,6 +142,7 @@ export function setVenue(v, el) {
   const mapImg = document.getElementById('map-base-img');
   if (mapImg) {
     const cfg  = VENUE_CONFIG[v] || VENUE_CONFIG.metlife;
+    _attachImgHandlers(mapImg, cfg.imageUrl);
     mapImg.src = cfg.imageUrl;
   }
 
@@ -117,8 +151,10 @@ export function setVenue(v, el) {
 
 // ── MAP RENDERER ──────────────────────────────────────────────────────────────
 export function renderStadiumMap() {
-  const cfg = VENUE_CONFIG[state.currentVenue] || VENUE_CONFIG.metlife;
-  const svg = document.getElementById('stadium-svg');
+  const cfg    = VENUE_CONFIG[state.currentVenue] || VENUE_CONFIG.metlife;
+  const svg    = document.getElementById('stadium-svg');
+  const mapImg = document.getElementById('map-base-img');
+  if (mapImg) _attachImgHandlers(mapImg, cfg.imageUrl);  // covers initial MetLife load
   if (!svg) return;
 
   // Build zone → units map for the current venue
