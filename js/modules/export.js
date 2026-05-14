@@ -7,15 +7,23 @@ import { getFiltered, statusConfig } from './render.js';
 export function exportExcel() {
   const f    = getFiltered();
   const rows = [
-    ['Digital Header S/N','Model','Controller','Controller S/N','Router S/N','SIM Card','IP Address','MAC Address','Content','Venue','Zone','Section','Location','Technician','Notes','Bottler','Status'],
-    ...f.map(d => [d.digitalHeader, d.model, d.controller, d.controllerSN||'—', d.routerSN||'—', d.simCard||'—', d.ipAddress||'—', d.macAddress||'—', d.content||'—', d.venue||'—', d.venueArea||'—', d.section||'—', d.location||'—', d.technician||'—', d.notes||'', d.bottler, d.status]),
+    ['Digital Header S/N','Controller','Controller S/N','Router S/N','SIM Card','IP Address','MAC Address','Content','Venue','Section','Location','Technician','Notes','Bottler','Status'],
+    ...f.map(d => [
+      d.digitalHeader,
+      d.controller,        d.controllerSN||'—', d.routerSN||'—', d.simCard||'—',
+      d.ipAddress||'—',    d.macAddress||'—',   d.content||'—',
+      d.venueName||'—',    // resolved venue name
+      d.zone||'—',         // zone captured in modal, shown as Section
+      d.location||'—',     d.technician||'—',   d.notes||'',
+      d.bottler,           d.status,
+    ]),
   ];
   const ws  = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [
-    {wch:16},{wch:28},{wch:18},{wch:18},{wch:18},{wch:16},{wch:14},{wch:16},{wch:16},{wch:20},{wch:20},{wch:10},{wch:24},{wch:16},{wch:20},{wch:22},{wch:20},
+    {wch:16},{wch:18},{wch:18},{wch:18},{wch:16},{wch:14},{wch:16},{wch:16},{wch:22},{wch:16},{wch:24},{wch:16},{wch:20},{wch:22},{wch:20},
   ];
   const hdrStyle = { font: { bold: true }, fill: { fgColor: { rgb: 'F40009' } }, alignment: { horizontal: 'center' } };
-  ['A1','B1','C1','D1','E1','F1','G1','H1','I1','J1','K1','L1','M1','N1','O1','P1','Q1'].forEach(cell => {
+  ['A1','B1','C1','D1','E1','F1','G1','H1','I1','J1','K1','L1','M1','N1','O1'].forEach(cell => {
     if (ws[cell]) ws[cell].s = hdrStyle;
   });
   const wb = XLSX.utils.book_new();
@@ -26,8 +34,15 @@ export function exportExcel() {
 
 export function exportPDF() {
   const f    = getFiltered();
-  const cols = ['DH S/N','Model','Controller','Ctrl S/N','Router S/N','SIM Card','Content','Venue','Zone','Section','Location','Technician','Status'];
-  const rows = f.map(d => [d.digitalHeader, d.model, d.controller, d.controllerSN||'—', d.routerSN||'—', d.simCard||'—', d.content||'—', d.venue||'—', d.venueArea||'—', d.section||'—', d.location||'—', d.technician||'—', d.status]);
+  const cols = ['DH S/N','Controller','Ctrl S/N','Router S/N','SIM Card','Content','Venue','Section','Location','Technician','Status'];
+  const rows = f.map(d => [
+    d.digitalHeader,
+    d.controller,      d.controllerSN||'—', d.routerSN||'—', d.simCard||'—',
+    d.content||'—',
+    d.venueName||'—',  // resolved venue name
+    d.zone||'—',       // zone captured in modal, shown as Section
+    d.location||'—',   d.technician||'—',  d.status,
+  ]);
 
   const styles = `
     @page{size:landscape;margin:10mm}
