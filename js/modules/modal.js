@@ -51,13 +51,9 @@ function _buildDropdownRows(dropdown, items, onSelect) {
   });
 }
 
-function _openDropdown(inputEl, dropdownEl, items, onSelect) {
+function _openDropdown(dropdownEl, items, onSelect) {
   _closeAllDropdowns();
   _buildDropdownRows(dropdownEl, items, onSelect);
-  const rect = inputEl.getBoundingClientRect();
-  dropdownEl.style.top   = (rect.bottom + 4) + 'px';
-  dropdownEl.style.left  = rect.left + 'px';
-  dropdownEl.style.width = rect.width + 'px';
   dropdownEl.classList.add('open');
 }
 
@@ -78,7 +74,7 @@ function _bindDropdownInputs() {
     venueInput.addEventListener('focus', () => {
       const q       = venueInput.value.trim().toLowerCase();
       const visible = q ? _venueOptions.filter(o => o.label.toLowerCase().includes(q)) : _venueOptions;
-      _openDropdown(venueInput, venueDrop, visible, val => { venueInput.value = val; });
+      _openDropdown(venueDrop, visible, val => { venueInput.value = val; });
     });
     venueInput.addEventListener('input', () => {
       if (!venueDrop.classList.contains('open')) return;
@@ -93,7 +89,7 @@ function _bindDropdownInputs() {
     zoneInput.addEventListener('focus', () => {
       const q    = zoneInput.value.trim().toLowerCase();
       const opts = _zoneOptions.map(z => ({ label: z, value: z }));
-      _openDropdown(zoneInput, zoneDrop, q ? opts.filter(o => o.label.toLowerCase().includes(q)) : opts,
+      _openDropdown(zoneDrop, q ? opts.filter(o => o.label.toLowerCase().includes(q)) : opts,
         val => { zoneInput.value = val; });
     });
     zoneInput.addEventListener('input', () => {

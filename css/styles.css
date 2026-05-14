@@ -31,7 +31,7 @@
      muted to keep sub-14 px labels above WCAG AA (4.5:1) */
   --text:       #f0f0f2;                  /* primary — ~18:1 on --bg  */
   --text-sub:   rgba(240,240,242,0.60);   /* secondary — ~7.5:1       */
-  --text-muted: rgba(240,240,242,0.38);   /* tertiary — placeholders  */
+  --text-muted: rgba(240,240,242,0.55);   /* tertiary — min WCAG AA 4.5:1 */
 
   /* ── Fonts — exact login.html stack */
   --sans: 'Bricolage Grotesque', system-ui, -apple-system, sans-serif;
@@ -55,7 +55,7 @@
 
 button {
   background:none; border:none; padding:0;
-  cursor:pointer; font-family:inherit;
+  cursor:pointer; font-family:inherit; color:inherit;
   -webkit-tap-highlight-color:transparent;
   touch-action:manipulation;
 }
@@ -213,7 +213,7 @@ body {
   font-size:12px; font-weight:700; letter-spacing:1px;
   text-transform:uppercase; color:var(--text-sub);
 }
-.kpi-sub { font-size:12px; color:var(--text-muted); margin-top:4px; }
+.kpi-sub { font-size:12px; color:var(--text-sub); margin-top:4px; }
 
 /* ── SECTION CARD ────────────────────────────────────────────── */
 .sc {
@@ -255,7 +255,7 @@ body {
 .dl-dot       { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
 .dl-info      { flex:1; }
 .dl-name      { font-size:13px; font-weight:600; }
-.dl-sub       { font-size:11px; color:var(--text-muted); font-family:var(--mono); margin-top:2px; }
+.dl-sub       { font-size:11px; color:var(--text-sub); font-family:var(--mono); margin-top:2px; }
 .dl-pct       { font-family:var(--mono); font-size:13px; font-weight:500; }
 
 /* ── BAR ─────────────────────────────────────────────────────── */
@@ -344,15 +344,16 @@ body {
 
 .item-body  { flex:1; min-width:0; }
 .item-serial {
-  font-family:var(--mono); font-size:13px; font-weight:500; letter-spacing:.4px;
+  font-family:var(--mono); font-size:13px; font-weight:600;
+  letter-spacing:.4px; color:var(--text);
 }
 .item-model {
-  font-size:12px; color:var(--text-muted); margin-top:3px;
+  font-size:12px; color:var(--text-sub); margin-top:3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .item-meta  { display:flex; gap:10px; margin-top:6px; flex-wrap:wrap; }
 .item-meta span { font-size:11px; color:var(--text-muted); font-family:var(--mono); }
-.item-meta span b { color:var(--text-sub); }
+.item-meta span b { color:var(--text); }
 
 .item-status {
   flex-shrink:0; padding:4px 10px; border-radius:6px;
@@ -450,7 +451,7 @@ body {
   font-size:10px; letter-spacing:1.2px; text-transform:uppercase;
   color:var(--text-muted); margin-bottom:5px;
 }
-.field-val { font-size:13px; font-weight:500; font-family:var(--mono); }
+.field-val { font-size:13px; font-weight:600; font-family:var(--mono); color:var(--text); }
 .field-val.pending { color:var(--text-muted); }
 
 .modal-section-title {
@@ -726,17 +727,19 @@ body.field-mode #loc-field, body.field-mode #m-section, body.field-mode .keep { 
   .header-logo { width: 55px; }
 }
 
-/* ── FLOATING FIELD DROPDOWN ─────────────────────────────────── */
+/* ── COMBOBOX DROPDOWN — anchored to input via position:absolute ─ */
 .field-dropdown {
-  position: fixed;
-  z-index: 600;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
   background: var(--card);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
   max-height: 200px;
   overflow-y: auto;
-  min-width: 160px;
   display: none;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
