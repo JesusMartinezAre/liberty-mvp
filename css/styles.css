@@ -725,3 +725,77 @@ body.field-mode #loc-field, body.field-mode #m-section, body.field-mode .keep { 
 @media (min-width: 768px) {
   .header-logo { width: 55px; }
 }
+
+/* ── FLOATING FIELD DROPDOWN ─────────────────────────────────── */
+.field-dropdown {
+  position: fixed;
+  z-index: 600;
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  max-height: 200px;
+  overflow-y: auto;
+  min-width: 160px;
+  display: none;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.field-dropdown.open { display: block; }
+.field-dropdown-item {
+  padding: 11px 14px;
+  font-size: 13px;
+  font-family: var(--sans);
+  color: var(--text-sub);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background .1s, color .1s;
+}
+.field-dropdown-item:last-child { border-bottom: none; }
+.field-dropdown-item:hover,
+.field-dropdown-item:active {
+  background: var(--card-hover);
+  color: var(--text);
+}
+.field-dropdown-empty {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ── MOBILE ≤ 767 px — contrast, tap targets, typography ────── */
+@media (max-width:767px) {
+  /* Platform filter chips (All / POPA / KOS) */
+  .chip {
+    padding: 9px 16px;
+    font-size: 13px;
+    color: var(--text-sub);
+  }
+  .chip-n { font-size: 12px; }
+
+  /* Status + venue filter chips — inactive opacity up from .45 */
+  .sf {
+    padding: 8px 14px;
+    font-size: 12px;
+    opacity: .80;
+  }
+  .sf.active  { opacity: 1; }
+  .sf:hover   { opacity: .9; }
+
+  /* Inventory list readability */
+  .item-serial { font-size: 14px; }
+  .item-model  { font-size: 12px; }
+  .item-meta span { font-size: 12px; }
+  .item-status { font-size: 11px; padding: 5px 12px; }
+
+  /* Modal field labels */
+  .field-lbl { font-size: 11px; letter-spacing: .8px; }
+
+  /* Floating dropdown — larger rows on mobile */
+  .field-dropdown-item { padding: 13px 16px; font-size: 14px; }
+}

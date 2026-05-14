@@ -28,57 +28,121 @@ function _openTechModal(action, subtitle, btnLabel, payload = null) {
   document.getElementById('tech-modal').style.display = 'flex';
 }
 
-// ── VENUE + ZONE DATALISTS ────────────────────────────────────────────────────
+// ── VENUE + ZONE FLOATING DROPDOWNS ──────────────────────────────────────────
+let _venueOptions   = [];   // { label, value }[] — refreshed each openModal
+let _zoneOptions    = [];   // string[]            — refreshed each openModal
+let _dropdownsBound = false;
+
+function _buildDropdownRows(dropdown, items, onSelect) {
+  if (!dropdown) return;
+  if (!items.length) {
+    dropdown.innerHTML = '<div class="field-dropdown-item field-dropdown-empty">No options yet</div>';
+    return;
+  }
+  dropdown.innerHTML = items
+    .map(item => `<div class="field-dropdown-item" data-value="${item.value.replace(/"/g, '&quot;')}">${item.label}</div>`)
+    .join('');
+  dropdown.querySelectorAll('.field-dropdown-item[data-value]').forEach(row => {
+    row.addEventListener('mousedown', e => {
+      e.preventDefault();   // prevent blur firing before value is set
+      onSelect(row.dataset.value);
+      _closeAllDropdowns();
+    });
+  });
+}
+
+function _openDropdown(inputEl, dropdownEl, items, onSelect) {
+  _closeAllDropdowns();
+  _buildDropdownRows(dropdownEl, items, onSelect);
+  const rect = inputEl.getBoundingClientRect();
+  dropdownEl.style.top   = (rect.bottom + 4) + 'px';
+  dropdownEl.style.left  = rect.left + 'px';
+  dropdownEl.style.width = rect.width + 'px';
+  dropdownEl.classList.add('open');
+}
+
+function _closeAllDropdowns() {
+  document.querySelectorAll('.field-dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+function _bindDropdownInputs() {
+  if (_dropdownsBound) return;
+  _dropdownsBound = true;
+
+  const venueInput = document.getElementById('m-venue-sel');
+  const zoneInput  = document.getElementById('m-zone-sel');
+  const venueDrop  = document.getElementById('venue-dropdown');
+  const zoneDrop   = document.getElementById('zone-dropdown');
+
+  if (venueInput && venueDrop) {
+    venueInput.addEventListener('focus', () => {
+      const q       = venueInput.value.trim().toLowerCase();
+      const visible = q ? _venueOptions.filter(o => o.label.toLowerCase().includes(q)) : _venueOptions;
+      _openDropdown(venueInput, venueDrop, visible, val => { venueInput.value = val; });
+    });
+    venueInput.addEventListener('input', () => {
+      if (!venueDrop.classList.contains('open')) return;
+      const q       = venueInput.value.trim().toLowerCase();
+      const visible = q ? _venueOptions.filter(o => o.label.toLowerCase().includes(q)) : _venueOptions;
+      _buildDropdownRows(venueDrop, visible, val => { venueInput.value = val; _closeAllDropdowns(); });
+    });
+    venueInput.addEventListener('blur', () => setTimeout(_closeAllDropdowns, 150));
+  }
+
+  if (zoneInput && zoneDrop) {
+    zoneInput.addEventListener('focus', () => {
+      const q    = zoneInput.value.trim().toLowerCase();
+      const opts = _zoneOptions.map(z => ({ label: z, value: z }));
+      _openDropdown(zoneInput, zoneDrop, q ? opts.filter(o => o.label.toLowerCase().includes(q)) : opts,
+        val => { zoneInput.value = val; });
+    });
+    zoneInput.addEventListener('input', () => {
+      if (!zoneDrop.classList.contains('open')) return;
+      const q    = zoneInput.value.trim().toLowerCase();
+      const opts = _zoneOptions.map(z => ({ label: z, value: z }));
+      _buildDropdownRows(zoneDrop, q ? opts.filter(o => o.label.toLowerCase().includes(q)) : opts,
+        val => { zoneInput.value = val; _closeAllDropdowns(); });
+    });
+    zoneInput.addEventListener('blur', () => setTimeout(_closeAllDropdowns, 150));
+  }
+
+  // Outside-click dismissal (desktop)
+  document.addEventListener('mousedown', e => {
+    if (e.target.id === 'm-venue-sel' || e.target.id === 'm-zone-sel') return;
+    document.querySelectorAll('.field-dropdown.open').forEach(d => {
+      if (!d.contains(e.target)) d.classList.remove('open');
+    });
+  }, true);
+}
+
 function populateSuggestions() {
-  // Venue — Firestore venues collection first, then any freeform values in the dataset
-  const venueDl = document.getElementById('venue-datalist');
+  // Venue datalist (keeps native autocomplete hint on desktop)
+  const venueDl  = document.getElementById('venue-datalist');
+  const known    = getVenues();
+  const knownIds = new Set(known.map(v => v.id));
+  const freeform = [...new Set(
+    state.DATA.map(d => d.venue).filter(v => v && v !== '—' && !knownIds.has(v))
+  )];
   if (venueDl) {
-    const known    = getVenues();
-    const knownIds = new Set(known.map(v => v.id));
-    const freeform = [...new Set(
-      state.DATA.map(d => d.venue).filter(v => v && v !== '—' && !knownIds.has(v))
-    )];
     venueDl.innerHTML = [
       ...known.map(v    => `<option value="${v.name}">`),
       ...freeform.map(v => `<option value="${v}">`),
     ].join('');
   }
+  _venueOptions = [
+    ...known.map(v    => ({ label: v.name, value: v.name })),
+    ...freeform.map(v => ({ label: v,      value: v      })),
+  ];
 
-  // Zone — unique non-empty zone strings already present in the dataset, sorted
+  // Zone datalist + options array
   const zoneDl = document.getElementById('zone-suggestions');
+  const zones  = [...new Set(state.DATA.map(d => d.zone).filter(z => z && z !== '—'))].sort();
   if (zoneDl) {
-    const zones = [...new Set(
-      state.DATA.map(d => d.zone).filter(z => z && z !== '—')
-    )].sort();
     zoneDl.innerHTML = zones.map(z => `<option value="${z}">`).join('');
   }
+  _zoneOptions = zones;
 
-  const chipStyle = [
-    'padding:4px 10px;border-radius:20px;border:1px solid var(--border);',
-    'background:var(--surface);color:var(--text-sub);font-size:10px;',
-    'font-family:var(--sans);cursor:pointer;white-space:nowrap;line-height:1.4',
-  ].join('');
-
-  const venueChips = document.getElementById('venue-chips');
-  if (venueChips) {
-    venueChips.innerHTML = getVenues().map(v =>
-      `<button type="button" style="${chipStyle}"
-               onclick="document.getElementById('m-venue-sel').value='${v.name.replace(/'/g, "\\'")}'">
-         ${v.name}
-       </button>`
-    ).join('');
-  }
-
-  const zoneChips = document.getElementById('zone-chips');
-  if (zoneChips) {
-    const zones = [...new Set(state.DATA.map(d => d.zone).filter(z => z && z !== '—'))].sort();
-    zoneChips.innerHTML = zones.map(z =>
-      `<button type="button" style="${chipStyle}"
-               onclick="document.getElementById('m-zone-sel').value='${z.replace(/'/g, "\\'")}'">
-         ${z}
-       </button>`
-    ).join('');
-  }
+  _bindDropdownInputs();
 }
 
 // ── OPEN / CLOSE ──────────────────────────────────────────────────────────────
@@ -158,6 +222,7 @@ export function openModal(id) {
 }
 
 export function closeModal() {
+  _closeAllDropdowns();
   document.getElementById('overlay').classList.remove('open');
   document.body.style.overflow = '';
   state.currentModalId = null;
