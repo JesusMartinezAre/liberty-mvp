@@ -624,48 +624,54 @@ export function toggleFieldMode() {
 
 // ── SINGLE-UNIT EXPORT ────────────────────────────────────────────────────────
 export async function exportUnitExcel() {
+  if (typeof XLSX === 'undefined') { showToast('⚠ Excel library not loaded'); return; }
   if (!state.currentModalId) { showToast('No unit selected'); return; }
   const d = state.DATA.find(x => x.id === state.currentModalId);
   if (!d) return;
   showToast('⏳ Preparing export…');
 
-  const photoUrls = (d.photos || []).map(p => p.url);
+  try {
+    const photoUrls = (d.photos || []).map(p => p.url || '');
 
-  const rows = [
-    ['Field', 'Value'],
-    ['Digital Header S/N', d.digitalHeader || '—'],
-    ['Controller',         d.controller     || '—'],
-    ['Controller S/N',     d.controllerSN   || '—'],
-    ['Router S/N',         d.routerSN       || '—'],
-    ['SIM Card',           d.simCard        || '—'],
-    ['Content',            d.content        || '—'],
-    ['Venue',              d.venueName      || '—'],
-    ['Section',            d.zone           || '—'],
-    ['Location',           d.location       || '—'],
-    ['Coordinates',        d.lat ? `${d.lat}, ${d.lng}` : '—'],
-    ['Technician',         d.technician     || '—'],
-    ['Notes',              d.notes          || '—'],
-    ['Bottler',            d.bottler        || '—'],
-    ['Status',             d.status         || '—'],
-    ['', ''],
-    ['PHOTO EVIDENCE', ''],
-    ...photoUrls.map((url, i) => [`Photo ${i + 1}`, url]),
-    ...(photoUrls.length === 0 ? [['—', 'No photos uploaded']] : []),
-  ];
+    const rows = [
+      ['Field', 'Value'],
+      ['Digital Header S/N', d.digitalHeader || '—'],
+      ['Controller',         d.controller     || '—'],
+      ['Controller S/N',     d.controllerSN   || '—'],
+      ['Router S/N',         d.routerSN       || '—'],
+      ['SIM Card',           d.simCard        || '—'],
+      ['Content',            d.content        || '—'],
+      ['Venue',              d.venueName      || '—'],
+      ['Section',            d.zone           || '—'],
+      ['Location',           d.location       || '—'],
+      ['Coordinates',        d.lat ? `${d.lat}, ${d.lng}` : '—'],
+      ['Technician',         d.technician     || '—'],
+      ['Notes',              d.notes          || '—'],
+      ['Bottler',            d.bottler        || '—'],
+      ['Status',             d.status         || '—'],
+      ['', ''],
+      ['PHOTO EVIDENCE', ''],
+      ...photoUrls.map((url, i) => [`Photo ${i + 1}`, url]),
+      ...(photoUrls.length === 0 ? [['—', 'No photos uploaded']] : []),
+    ];
 
-  const ws  = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 20 }, { wch: 80 }];
-  ['A1', 'B1'].forEach(cell => {
-    if (ws[cell]) ws[cell].s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: 'F40009' } } };
-  });
-  const photoHeaderRow = rows.findIndex(r => r[0] === 'PHOTO EVIDENCE') + 1;
-  const photoCell      = `A${photoHeaderRow}`;
-  if (ws[photoCell]) ws[photoCell].s = { font: { bold: true, color: { rgb: 'F40009' } } };
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 20 }, { wch: 80 }];
+    ['A1', 'B1'].forEach(cell => {
+      if (ws[cell]) ws[cell].s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: 'F40009' } } };
+    });
+    const photoHeaderRow = rows.findIndex(r => r[0] === 'PHOTO EVIDENCE') + 1;
+    const photoCell      = `A${photoHeaderRow}`;
+    if (ws[photoCell]) ws[photoCell].s = { font: { bold: true, color: { rgb: 'F40009' } } };
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, d.digitalHeader);
-  XLSX.writeFile(wb, `${d.digitalHeader}_Liberty.xlsx`);
-  showToast('✓ Excel exported');
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, d.digitalHeader || 'Unit');
+    XLSX.writeFile(wb, `${d.digitalHeader || 'Unit'}_Liberty.xlsx`);
+    showToast('✓ Excel exported');
+  } catch (e) {
+    showToast('⚠ Export failed — ' + e.message);
+    console.error('[exportUnitExcel]', e);
+  }
 }
 
 export async function exportUnitPDF() {
