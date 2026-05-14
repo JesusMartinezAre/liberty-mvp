@@ -623,27 +623,18 @@ export async function exportUnitExcel() {
   if (!d) return;
   showToast('⏳ Preparing export…');
 
-  let photoUrls = [];
-  try {
-    const snap = await state.db.collection(COLLECTION).doc(state.currentModalId)
-      .collection('photos').orderBy('uploadedAt', 'desc').get();
-    photoUrls = snap.docs.map(doc => doc.data().url);
-  } catch {}
+  const photoUrls = (d.photos || []).map(p => p.url);
 
   const rows = [
     ['Field', 'Value'],
     ['Digital Header S/N', d.digitalHeader || '—'],
-    ['Model',              d.model          || '—'],
     ['Controller',         d.controller     || '—'],
     ['Controller S/N',     d.controllerSN   || '—'],
     ['Router S/N',         d.routerSN       || '—'],
     ['SIM Card',           d.simCard        || '—'],
-    ['IP Address',         d.ipAddress      || '—'],
-    ['MAC Address',        d.macAddress     || '—'],
     ['Content',            d.content        || '—'],
-    ['Venue',              d.venue          || '—'],
-    ['Zone',               d.venueArea      || '—'],
-    ['Section',            d.section        || '—'],
+    ['Venue',              d.venueName      || '—'],
+    ['Section',            d.zone           || '—'],
     ['Location',           d.location       || '—'],
     ['Coordinates',        d.lat ? `${d.lat}, ${d.lng}` : '—'],
     ['Technician',         d.technician     || '—'],
@@ -675,18 +666,12 @@ export async function exportUnitPDF() {
   if (!state.currentModalId) { showToast('No unit selected'); return; }
   const d = state.DATA.find(x => x.id === state.currentModalId);
   if (!d) return;
-  showToast('⏳ Loading photos…');
+  showToast('⏳ Preparing export…');
 
-  let photos = [];
-  try {
-    const snap = await state.db.collection(COLLECTION).doc(state.currentModalId)
-      .collection('photos').orderBy('uploadedAt', 'asc').get();
-    photos = snap.docs.map(doc => {
-      const p  = doc.data();
-      const ts = p.uploadedAt?.toDate ? p.uploadedAt.toDate().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-      return { url: p.url.replace('/upload/', '/upload/w_400,q_85/'), ts };
-    });
-  } catch {}
+  const photos = (d.photos || []).map(p => ({
+    url: p.url.replace('/upload/', '/upload/w_400,q_85/'),
+    ts:  typeof p.uploadedAt === 'string' ? p.uploadedAt : '',
+  }));
 
   const sc          = statusConfig(d.status);
   const statusColor = sc.color
@@ -695,17 +680,13 @@ export async function exportUnitPDF() {
 
   const fields = [
     ['Digital Header S/N', d.digitalHeader],
-    ['Model',              d.model],
     ['Controller',         d.controller],
     ['Controller S/N',     d.controllerSN  || '—'],
     ['Router S/N',         d.routerSN      || '—'],
     ['SIM Card',           d.simCard       || '—'],
-    ['IP Address',         d.ipAddress     || '—'],
-    ['MAC Address',        d.macAddress    || '—'],
     ['Content',            d.content       || '—'],
-    ['Venue',              d.venue         || '—'],
-    ['Zone',               d.venueArea     || '—'],
-    ['Section',            d.section       || '—'],
+    ['Venue',              d.venueName     || '—'],
+    ['Section',            d.zone          || '—'],
     ['Location',           d.location      || '—'],
     ['Coordinates',        d.lat ? `${parseFloat(d.lat).toFixed(6)}°, ${parseFloat(d.lng).toFixed(6)}°` : '—'],
     ['Technician',         d.technician    || '—'],
@@ -721,13 +702,11 @@ export async function exportUnitPDF() {
   const mapsUrl  = d.lat ? `https://maps.google.com/maps?daddr=${d.lat},${d.lng}&dirflg=w` : null;
   const photoGrid = photos.length > 0
     ? `<div style="margin-top:20px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#F40009;margin-bottom:10px">Photo Evidence (${photos.length})</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-          ${photos.map(p => `
-            <div style="break-inside:avoid">
-              <img src="${p.url}" style="width:100%;border-radius:6px;border:1px solid #eee" crossorigin="anonymous">
-              <div style="font-size:8px;color:#aaa;margin-top:3px;text-align:center">${p.ts}</div>
-            </div>`).join('')}
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#F40009;margin-bottom:10px">Photo Evidence${photos.length > 1 ? ` (${photos.length})` : ''}</div>
+        <div style="break-inside:avoid">
+          <img src="${photos[0].url}" style="max-width:100%;max-height:320px;object-fit:contain;border-radius:6px;border:1px solid #eee;display:block" crossorigin="anonymous">
+          ${photos[0].ts ? `<div style="font-size:8px;color:#aaa;margin-top:4px">${photos[0].ts}</div>` : ''}
+          ${photos.length > 1 ? `<div style="font-size:9px;color:#aaa;margin-top:6px">+ ${photos.length - 1} additional photo${photos.length > 2 ? 's' : ''} on file</div>` : ''}
         </div></div>`
     : '<div style="margin-top:16px;padding:12px;background:#f9f9f9;border-radius:6px;font-size:10px;color:#aaa;text-align:center">No photos uploaded</div>';
 
