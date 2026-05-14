@@ -347,6 +347,13 @@ export async function captureLocation() {
     return;
   }
 
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    showToast('⚠ GPS requires HTTPS');
+    btn.textContent = '📍 Capture Location';
+    btn.style.opacity = '1'; btn.disabled = false;
+    return;
+  }
+
   navigator.geolocation.getCurrentPosition(async pos => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
@@ -376,6 +383,8 @@ export async function captureLocation() {
         location: address, locationAccuracy: acc,
         locationCapturedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
+      const dItem = state.DATA.find(x => x.id === state.currentModalId);
+      if (dItem) { dItem.lat = lat.toString(); dItem.lng = lng.toString(); dItem.location = address; }
       showToast('📍 Location saved');
     } catch (e) { showToast('⚠ Could not save location'); console.error(e); }
 
@@ -385,11 +394,15 @@ export async function captureLocation() {
     if (cb) cb.style.display = 'flex';
 
   }, err => {
-    const msgs = { 1: 'Permission denied', 2: 'Position unavailable', 3: 'Timeout' };
-    showToast('⚠ ' + (msgs[err.code] || 'GPS error'));
+    if (err.code === 1) {
+      alert('Location access was denied.\n\niOS: Settings → Privacy & Security → Location Services → Safari → "While Using"\n\nAndroid / Desktop: tap the lock icon in the address bar and allow Location.');
+    } else {
+      const msgs = { 2: 'Position unavailable — check signal', 3: 'GPS timed out — try again outdoors' };
+      showToast('⚠ ' + (msgs[err.code] || 'GPS error'));
+    }
     btn.textContent = '📍 Capture Location';
     btn.style.opacity = '1'; btn.disabled = false;
-  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  }, { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 });
 }
 
 export async function clearLocation() {
@@ -410,6 +423,8 @@ export async function clearLocation() {
       locationAccuracy:     firebase.firestore.FieldValue.delete(),
       locationCapturedAt:   firebase.firestore.FieldValue.delete(),
     });
+    const dItem = state.DATA.find(x => x.id === state.currentModalId);
+    if (dItem) { dItem.lat = null; dItem.lng = null; dItem.location = '—'; }
     locEl.textContent      = '—';
     locEl.className        = 'field-val pending';
     coordsEl.style.display = 'none';

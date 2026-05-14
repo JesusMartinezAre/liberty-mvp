@@ -72,6 +72,10 @@ function adapt(player, venue, evidence) {
     photos:        evidence?.photos     || [],
     changeHistory: evidence?.changeHistory || [],
 
+    // ── GPS ────────────────────────────────────────────────────────────────
+    lat:           player.lat           || null,
+    lng:           player.lng           || null,
+
     // ── Timestamps ─────────────────────────────────────────────────────────
     updatedAt:     player.updatedAt     || null,
     createdAt:     player.createdAt     || null,
