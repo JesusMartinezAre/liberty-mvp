@@ -158,7 +158,10 @@ export function renderStadiumMap() {
   const cfg    = VENUE_CONFIG[state.currentVenue] || VENUE_CONFIG.metlife;
   const svg    = document.getElementById('stadium-svg');
   const mapImg = document.getElementById('map-base-img');
-  if (mapImg) _attachImgHandlers(mapImg, cfg.imageUrl);  // covers initial MetLife load
+  if (mapImg) {
+    _attachImgHandlers(mapImg, cfg.imageUrl);
+    mapImg.src = cfg.imageUrl;
+  }
   if (!svg) return;
 
   // Build zone → units map for the current venue

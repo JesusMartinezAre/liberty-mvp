@@ -52,6 +52,33 @@ function populateSuggestions() {
     )].sort();
     zoneDl.innerHTML = zones.map(z => `<option value="${z}">`).join('');
   }
+
+  const chipStyle = [
+    'padding:4px 10px;border-radius:20px;border:1px solid var(--border);',
+    'background:var(--surface);color:var(--text-sub);font-size:10px;',
+    'font-family:var(--sans);cursor:pointer;white-space:nowrap;line-height:1.4',
+  ].join('');
+
+  const venueChips = document.getElementById('venue-chips');
+  if (venueChips) {
+    venueChips.innerHTML = getVenues().map(v =>
+      `<button type="button" style="${chipStyle}"
+               onclick="document.getElementById('m-venue-sel').value='${v.name.replace(/'/g, "\\'")}'">
+         ${v.name}
+       </button>`
+    ).join('');
+  }
+
+  const zoneChips = document.getElementById('zone-chips');
+  if (zoneChips) {
+    const zones = [...new Set(state.DATA.map(d => d.zone).filter(z => z && z !== '—'))].sort();
+    zoneChips.innerHTML = zones.map(z =>
+      `<button type="button" style="${chipStyle}"
+               onclick="document.getElementById('m-zone-sel').value='${z.replace(/'/g, "\\'")}'">
+         ${z}
+       </button>`
+    ).join('');
+  }
 }
 
 // ── OPEN / CLOSE ──────────────────────────────────────────────────────────────
@@ -692,7 +719,7 @@ export async function exportUnitPDF() {
   showToast('⏳ Preparing export…');
 
   const photos = (d.photos || []).map(p => ({
-    url: p.url.replace('/upload/', '/upload/w_400,q_85/'),
+    url: p.url.replace('/upload/', '/upload/w_600,q_80/'),
     ts:  typeof p.uploadedAt === 'string' ? p.uploadedAt : '',
   }));
 
@@ -725,12 +752,15 @@ export async function exportUnitPDF() {
   const mapsUrl  = d.lat ? `https://maps.google.com/maps?daddr=${d.lat},${d.lng}&dirflg=w` : null;
   const photoGrid = photos.length > 0
     ? `<div style="margin-top:20px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#F40009;margin-bottom:10px">Photo Evidence${photos.length > 1 ? ` (${photos.length})` : ''}</div>
-        <div style="break-inside:avoid">
-          <img src="${photos[0].url}" style="max-width:100%;max-height:320px;object-fit:contain;border-radius:6px;border:1px solid #eee;display:block" crossorigin="anonymous">
-          ${photos[0].ts ? `<div style="font-size:8px;color:#aaa;margin-top:4px">${photos[0].ts}</div>` : ''}
-          ${photos.length > 1 ? `<div style="font-size:9px;color:#aaa;margin-top:6px">+ ${photos.length - 1} additional photo${photos.length > 2 ? 's' : ''} on file</div>` : ''}
-        </div></div>`
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#F40009;margin-bottom:12px">Photo Evidence (${photos.length})</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:800px">
+          ${photos.map(p => `
+            <div style="break-inside:avoid">
+              <img src="${p.url}" style="width:100%;max-height:280px;object-fit:cover;border-radius:6px;border:1px solid #eee;display:block" crossorigin="anonymous">
+              ${p.ts ? `<div style="font-size:8px;color:#aaa;margin-top:4px;text-align:center">${p.ts}</div>` : ''}
+            </div>`).join('')}
+        </div>
+      </div>`
     : '<div style="margin-top:16px;padding:12px;background:#f9f9f9;border-radius:6px;font-size:10px;color:#aaa;text-align:center">No photos uploaded</div>';
 
   const htmlContent = `<!DOCTYPE html><html><head>
