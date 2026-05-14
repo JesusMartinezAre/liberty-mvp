@@ -81,7 +81,7 @@ const VENUE_CONFIG = {
   },
 
   lincoln: {
-    imageUrl: '/assets/maps/lincoln.png',
+    imageUrl: '/assets/maps/lincoln.jpeg',
     pins: {
       '100-north': { x:490, y:188, label:'100s North' },
       '100-south': { x:490, y:420, label:'100s South' },
@@ -113,7 +113,7 @@ const VENUE_CONFIG = {
   },
 
   rockefeller: {
-    imageUrl: '/assets/maps/rockefeller.png',
+    imageUrl: '/assets/maps/rockefeller.jpeg',
     pins: {
       'plaza-main':      { x:295, y:415, label:'Main Plaza'       },
       'plaza-north':     { x:295, y:265, label:'North Plaza'      },
