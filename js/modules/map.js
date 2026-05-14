@@ -42,7 +42,11 @@ function _attachImgHandlers(mapImg, imageUrl) {
 // ── VENUE CONFIGURATION ───────────────────────────────────────────────────────
 // Single source of truth for each venue's seating chart image, SVG pin
 // coordinates, and Areas & Units list.
-// To swap a stadium image: update the imageUrl line — no other changes needed.
+//
+// imageUrl is passed directly to <img>.src — the browser resolves the format
+// from the HTTP Content-Type header, not the file extension. Any format works
+// (.jpg, .png, .webp, Cloudinary URL, etc.). To swap or reformat a stadium
+// image: update only the imageUrl string for that venue — nothing else changes.
 const VENUE_CONFIG = {
   metlife: {
     imageUrl: '/assets/maps/metlife.jpg',
