@@ -798,4 +798,33 @@ body.field-mode #loc-field, body.field-mode #m-section, body.field-mode .keep { 
 
   /* Floating dropdown — larger rows on mobile */
   .field-dropdown-item { padding: 13px 16px; font-size: 14px; }
+
+  /* Double-opacity fix — .item-arrow uses text-muted (38%) + opacity:.6 = ~23% */
+  .item-arrow { opacity: 1; }
+
+  /* Navigation tabs */
+  .tab      { font-size: 13px; color: var(--text-sub); }
+  .tab .cnt { font-size: 11px; }
+
+  /* Header chrome */
+  .brand-sub { color: var(--text-sub); }
+  .live-pill { color: var(--text-sub); font-size: 12px; }
+
+  /* Action buttons */
+  .export-btn  { color: var(--text-sub); }
+  .modal-close { color: var(--text-sub); font-size: 12px; }
+
+  /* Modal interior */
+  .status-label        { color: var(--text-sub); }
+  .status-step         { font-size: 12px; color: var(--text-sub); }
+  .modal-section-title { color: var(--text-sub); font-size: 12px; }
+
+  /* Inventory + analytics */
+  .res-info { font-size: 13px; }
+  .pipe-pct { font-size: 12px; }
+  .at th    { font-size: 12px; }
+
+  /* Map page */
+  .area-sub      { font-size: 12px; color: var(--text-sub); }
+  .map-unit-chip { font-size: 12px; color: var(--text-sub); }
 }

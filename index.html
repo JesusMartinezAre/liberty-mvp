@@ -361,22 +361,20 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px">
       <div>
         <div class="field-lbl" style="margin-bottom:4px">Venue</div>
-        <input type="text" id="m-venue-sel" list="venue-datalist"
+        <input type="text" id="m-venue-sel" autocomplete="off"
           placeholder="Select or type a venue…"
           style="width:100%;background:var(--surface);border:1px solid var(--border);
                  border-radius:8px;padding:8px 10px;font-family:var(--sans);font-size:11px;
                  color:var(--text);outline:none;box-sizing:border-box">
-        <datalist id="venue-datalist"></datalist>
         <div id="venue-dropdown" class="field-dropdown"></div>
       </div>
       <div>
         <div class="field-lbl" style="margin-bottom:4px">Zone / Section</div>
-        <input type="text" id="m-zone-sel" list="zone-suggestions"
+        <input type="text" id="m-zone-sel" autocomplete="off"
           placeholder="e.g. Field Level North · 107"
           style="width:100%;background:var(--surface);border:1px solid var(--border);
                  border-radius:8px;padding:8px 10px;font-family:var(--sans);font-size:11px;
                  color:var(--text);outline:none;box-sizing:border-box">
-        <datalist id="zone-suggestions"></datalist>
         <div id="zone-dropdown" class="field-dropdown"></div>
       </div>
     </div>

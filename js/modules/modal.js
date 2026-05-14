@@ -116,31 +116,17 @@ function _bindDropdownInputs() {
 }
 
 function populateSuggestions() {
-  // Venue datalist (keeps native autocomplete hint on desktop)
-  const venueDl  = document.getElementById('venue-datalist');
   const known    = getVenues();
   const knownIds = new Set(known.map(v => v.id));
   const freeform = [...new Set(
     state.DATA.map(d => d.venue).filter(v => v && v !== '—' && !knownIds.has(v))
   )];
-  if (venueDl) {
-    venueDl.innerHTML = [
-      ...known.map(v    => `<option value="${v.name}">`),
-      ...freeform.map(v => `<option value="${v}">`),
-    ].join('');
-  }
   _venueOptions = [
     ...known.map(v    => ({ label: v.name, value: v.name })),
     ...freeform.map(v => ({ label: v,      value: v      })),
   ];
 
-  // Zone datalist + options array
-  const zoneDl = document.getElementById('zone-suggestions');
-  const zones  = [...new Set(state.DATA.map(d => d.zone).filter(z => z && z !== '—'))].sort();
-  if (zoneDl) {
-    zoneDl.innerHTML = zones.map(z => `<option value="${z}">`).join('');
-  }
-  _zoneOptions = zones;
+  _zoneOptions = [...new Set(state.DATA.map(d => d.zone).filter(z => z && z !== '—'))].sort();
 
   _bindDropdownInputs();
 }
