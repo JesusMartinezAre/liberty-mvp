@@ -59,7 +59,7 @@ function adapt(player, venue, evidence) {
     installed:     player.installed     === true,
 
     // ── Venue JOIN ─────────────────────────────────────────────────────────
-    venue:         player.venueId        || '—',
+    venue:         player.venue          || '—',
     venueName:     venue?.name           || '—',
     location:      venue?.location      || player.location || '—',
     section:       venue?.section       || player.section  || '—',
@@ -90,7 +90,7 @@ function computeAndEmit() {
   const items = Object.values(_players)
     .map(player => adapt(
       player,
-      _venues[player.venueId],
+      _venues[player.venue],
       _evidence[player.id],
     ))
     .sort((a, b) => (a.digitalHeader || '').localeCompare(b.digitalHeader || ''));

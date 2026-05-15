@@ -43,15 +43,25 @@ export function exportExcel() {
 
 export function exportPDF() {
   const f    = getFiltered();
-  const cols = ['DH S/N','Controller','Ctrl S/N','Router S/N','SIM Card','Content','Venue','Section','Location','Technician','Status'];
-  const rows = f.map(d => [
-    d.digitalHeader,
-    d.controller,      d.controllerSN||'—', d.routerSN||'—', d.simCard||'—',
-    d.content||'—',
-    d.venueName||'—',  // resolved venue name
-    d.zone||'—',       // zone captured in modal, shown as Section
-    d.location||'—',   d.technician||'—',  d.status,
-  ]);
+  const cols = ['DH S/N','Controller','Ctrl S/N','Router S/N','SIM Card','Content','Venue','Section','Location','Technician','Status','Evidence'];
+  const rows = f.map(d => {
+    const photos  = (d.photos || []).slice(0, 2);
+    const extra   = (d.photos || []).length > 2 ? d.photos.length - 2 : 0;
+    const thumbs  = photos.map(url => {
+      const t = url.replace(/\/upload\//, '/upload/w_80,h_80,c_fill,q_60/');
+      return `<img class="ev-thumb" src="${t}" alt="">`;
+    }).join('');
+    const moreTag = extra > 0 ? `<span class="ev-more">+${extra}</span>` : '';
+    return [
+      d.digitalHeader,
+      d.controller,      d.controllerSN||'—', d.routerSN||'—', d.simCard||'—',
+      d.content||'—',
+      d.venueName||'—',
+      d.zone||'—',
+      d.location||'—',   d.technician||'—',  d.status,
+      thumbs + moreTag,
+    ];
+  });
 
   const styles = `
     @page{size:landscape;margin:10mm}
@@ -60,15 +70,17 @@ export function exportPDF() {
     p{font-size:8px;color:#666;margin-bottom:8px}
     table{width:100%;border-collapse:collapse}
     th{background:#F40009;color:#fff;padding:4px 5px;text-align:left;font-size:7px;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap}
-    td{padding:3px 5px;border-bottom:1px solid #eee;font-size:7px;white-space:nowrap}
+    td{padding:3px 5px;border-bottom:1px solid #eee;font-size:7px;white-space:nowrap;vertical-align:middle}
+    .ev-thumb{width:40px;height:40px;object-fit:cover;border-radius:3px;margin-right:3px;vertical-align:middle}
+    .ev-more{font-size:6px;color:#666;vertical-align:middle}
     tr:nth-child(even) td{background:#f9f9f9}
     .s0{color:#888}.s1{color:#3b82f6}.s2{color:#f59e0b}.s3{color:#a855f7}.s4{color:#22c55e;font-weight:700}
   `;
-  const sc       = s => ({'In Assembly':'s0','Completed':'s1','Shipped':'s2','With Client':'s3','Installed at Venue':'s4'}[s] || '');
-  const lastIdx  = cols.length - 1;
-  const thead    = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
-  const tbody    = rows.map(r => {
-    const cells = r.map((v, i) => i === lastIdx ? `<td class="${sc(v)}">${v}</td>` : `<td>${v}</td>`).join('');
+  const sc         = s => ({'In Assembly':'s0','Completed':'s1','Shipped':'s2','With Client':'s3','Installed at Venue':'s4'}[s] || '');
+  const STATUS_IDX = cols.indexOf('Status');
+  const thead      = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+  const tbody      = rows.map(r => {
+    const cells = r.map((v, i) => i === STATUS_IDX ? `<td class="${sc(v)}">${v}</td>` : `<td>${v}</td>`).join('');
     return `<tr>${cells}</tr>`;
   }).join('');
 
@@ -77,7 +89,7 @@ export function exportPDF() {
     <h2>Coca-Cola Liberty — Digital Display Inventory</h2>
     <p>Generated: ${new Date().toLocaleString()} · ${f.length} units</p>
     <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
-    <script>window.onload=()=>{window.print();}<\/script>
+    <script>window.onload=function(){var imgs=Array.from(document.images);if(!imgs.length){window.print();return;}var done=0;function p(){if(++done>=imgs.length)window.print();}imgs.forEach(function(im){if(im.complete){p();}else{im.addEventListener('load',p);im.addEventListener('error',p);}});}<\/script>
     </body></html>`;
 
   const blob   = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
