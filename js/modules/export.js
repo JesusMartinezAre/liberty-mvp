@@ -46,21 +46,19 @@ export function exportPDF() {
   const cols = ['DH S/N','Controller','Ctrl S/N','Router S/N','SIM Card','Content','Venue','Section','Location','Technician','Status','Evidence'];
   const rows = f.map(d => {
     const photos  = (d.photos || []).slice(0, 2);
-    const extra   = (d.photos || []).length > 2 ? d.photos.length - 2 : 0;
     const thumbs  = photos.map(url => {
       const rawUrl = typeof url === 'string' ? url : url.url;
       const t      = rawUrl.replace(/\/upload\//, '/upload/w_80,h_80,c_fill,q_60/');
       return `<img class="ev-thumb" src="${t}" alt="">`;
     }).join('');
-    const moreTag = extra > 0 ? `<span class="ev-more">+${extra}</span>` : '';
     return [
       d.digitalHeader,
       d.controller,      d.controllerSN||'—', d.routerSN||'—', d.simCard||'—',
       d.content||'—',
-      d.venueName||'—',
+      d.venueName !== '—' ? d.venueName : (d.venue || '—'),
       d.zone||'—',
       d.location||'—',   d.technician||'—',  d.status,
-      thumbs + moreTag,
+      thumbs,
     ];
   });
 

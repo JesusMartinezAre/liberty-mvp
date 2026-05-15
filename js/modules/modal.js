@@ -782,7 +782,7 @@ export async function exportUnitPDF() {
     ['Router S/N',         d.routerSN      || '—'],
     ['SIM Card',           d.simCard       || '—'],
     ['Content',            d.content       || '—'],
-    ['Venue',              d.venueName     || '—'],
+    ['Venue',              d.venueName !== '—' ? d.venueName : (d.venue || '—')],
     ['Section',            d.zone          || '—'],
     ['Location',           d.location      || '—'],
     ['Coordinates',        d.lat ? `${parseFloat(d.lat).toFixed(6)}°, ${parseFloat(d.lng).toFixed(6)}°` : '—'],
