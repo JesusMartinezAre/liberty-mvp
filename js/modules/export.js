@@ -48,7 +48,8 @@ export function exportPDF() {
     const photos  = (d.photos || []).slice(0, 2);
     const extra   = (d.photos || []).length > 2 ? d.photos.length - 2 : 0;
     const thumbs  = photos.map(url => {
-      const t = url.replace(/\/upload\//, '/upload/w_80,h_80,c_fill,q_60/');
+      const rawUrl = typeof url === 'string' ? url : url.url;
+      const t      = rawUrl.replace(/\/upload\//, '/upload/w_80,h_80,c_fill,q_60/');
       return `<img class="ev-thumb" src="${t}" alt="">`;
     }).join('');
     const moreTag = extra > 0 ? `<span class="ev-more">+${extra}</span>` : '';
