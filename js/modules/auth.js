@@ -111,5 +111,11 @@ export function enterReadOnly() {
 
 // ── EMAILJS INIT ──────────────────────────────────────────────────────────────
 export function initEmailJS() {
-  if (typeof emailjs !== 'undefined') emailjs.init(EMAILJS_KEY);
+  if (typeof emailjs !== 'undefined') {
+    emailjs.init(EMAILJS_KEY);
+    return;
+  }
+  // SDK still loading (slow CDN) — init as soon as the script tag fires its load event.
+  const s = document.querySelector('script[src*="emailjs"]');
+  if (s) s.addEventListener('load', () => emailjs.init(EMAILJS_KEY));
 }

@@ -297,22 +297,82 @@ async function _confirmInstall(installed, technician) {
 
 // ── EMAIL NOTIFICATION ────────────────────────────────────────────────────────
 export async function sendInstallNotification(unit) {
+  if (typeof emailjs === 'undefined') {
+    showToast('⚠ Email SDK not loaded — notification skipped');
+    console.warn('[sendInstallNotification] EmailJS SDK not available');
+    return;
+  }
+
   try {
-    if (typeof emailjs === 'undefined') { console.warn('EmailJS not loaded'); return; }
-    const ts        = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    const installed = state.DATA.filter(d => d.status === 'Installed at Venue').length;
-    const msg       = `Unit installed at POS\n\nSerial: ${unit.digitalHeader}\nModel: ${unit.model}\nVenue: ${unit.venueName || unit.venue || '—'}\nZone: ${unit.zone || '—'}\nLocation: ${unit.location || '—'}\nTechnician: ${unit.technician || '—'}\nTime: ${ts}\n\nProgress: ${installed}/${state.DATA.length} units installed`;
-    const result    = await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+    const ts      = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const instCnt = state.DATA.filter(d => d.status === 'Installed at Venue').length;
+    const total   = state.DATA.length;
+    const pct     = total > 0 ? Math.round(instCnt / total * 100) : 0;
+
+    const venue    = unit.venueName !== '—' ? unit.venueName : (unit.venue || '—');
+    const coords   = unit.lat && unit.lng
+      ? `${parseFloat(unit.lat).toFixed(6)}°, ${parseFloat(unit.lng).toFixed(6)}°`
+      : '—';
+    const mapsLine = unit.lat && unit.lng
+      ? [`  Google Maps    : https://maps.google.com/maps?daddr=${unit.lat},${unit.lng}&dirflg=w`]
+      : [];
+
+    const photoUrls = (unit.photos || []).map(p => typeof p === 'string' ? p : p.url);
+    const photoLines = photoUrls.length > 0
+      ? [`── EVIDENCE PHOTOS (${photoUrls.length}) ──────────────────────────`,
+         ...photoUrls.map((url, i) => `  ${i + 1}. ${url.replace(/\/upload\//, '/upload/w_600,q_80/')}`)]
+      : ['── EVIDENCE PHOTOS ─────────────────────────────',
+         '  No photos on record'];
+
+    const msg = [
+      '══════════════════════════════════════════════',
+      '  INSTALLATION CONFIRMED — Coca-Cola Liberty',
+      '  FIFA World Cup 2026 · POP Atelier LLC',
+      '══════════════════════════════════════════════',
+      '',
+      '── UNIT ───────────────────────────────────────',
+      `  Serial Number  : ${unit.digitalHeader || '—'}`,
+      `  Platform       : ${unit.model         || '—'}`,
+      `  Controller S/N : ${unit.controllerSN  || '—'}`,
+      `  Router S/N     : ${unit.routerSN      || '—'}`,
+      `  SIM Card       : ${unit.simCard       || '—'}`,
+      `  Content        : ${unit.content       || '—'}`,
+      `  Bottler        : ${unit.bottler       || 'Coca-Cola Liberty'}`,
+      '',
+      '── DEPLOYMENT ─────────────────────────────────',
+      `  Venue          : ${venue}`,
+      `  Section / Zone : ${unit.zone     || '—'}`,
+      `  Location       : ${unit.location || '—'}`,
+      `  Coordinates    : ${coords}`,
+      ...mapsLine,
+      '',
+      '── TECHNICIAN ─────────────────────────────────',
+      `  Name           : ${unit.technician || '—'}`,
+      `  Notes          : ${unit.notes      || '—'}`,
+      '',
+      '── STATUS & PROGRESS ──────────────────────────',
+      `  Status         : ✅ Installed at Venue`,
+      `  Confirmed at   : ${ts}`,
+      `  Progress       : ${instCnt} of ${total} units installed (${pct}%)`,
+      '',
+      ...photoLines,
+      '',
+      '══════════════════════════════════════════════',
+      '  POP Atelier LLC · popatelier.net',
+      '══════════════════════════════════════════════',
+    ].join('\n');
+
+    const result = await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
       title:   `✅ Installed — ${unit.digitalHeader}`,
       name:    unit.technician || 'Field Tech',
       time:    ts,
       message: msg,
       email:   NOTIFY_EMAIL,
     });
-    console.log('Email sent:', result.status, result.text);
+    console.log('[sendInstallNotification] sent:', result.status, result.text);
     showToast('📧 Notification sent');
   } catch (e) {
-    console.error('Email failed:', e);
+    console.error('[sendInstallNotification] failed:', e);
     showToast('⚠ Email: ' + (e.text || e.message || JSON.stringify(e)));
   }
 }

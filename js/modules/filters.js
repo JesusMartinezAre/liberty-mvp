@@ -7,7 +7,6 @@ import { showPage, syncSidebar }  from './ui.js';
 
 export function setPlatform(p, el) {
   state.filterPlatform = p;
-  state.filterVenue    = '';
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   renderList();
@@ -15,8 +14,7 @@ export function setPlatform(p, el) {
 
 export function setStatusFilter(s, el) {
   state.filterStatus = s;
-  state.filterVenue  = '';
-  document.querySelectorAll('.sf').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.sf[data-s]').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   renderList();
 }
@@ -40,24 +38,19 @@ export function clearVenueFilter() {
 }
 
 export function venueFilterChip(v, el) {
-  state.filterVenue  = v;
-  state.filterStatus = '';
-  document.querySelectorAll('.sf').forEach(c => c.classList.remove('active'));
+  state.filterVenue = v;
+  document.querySelectorAll('.sf[data-v]').forEach(c => c.classList.remove('active'));
   if (el) el.classList.add('active');
   renderList();
 }
 
 export function venueFilter(v) {
-  state.filterPlatform = 'all';
-  state.filterStatus   = '';
-  state.filterVenue    = v;
-  state.filterQ        = '';
+  state.filterVenue = v;
+  state.filterQ     = '';
   const qb = document.getElementById('q');
   if (qb) qb.value = '';
 
-  document.querySelectorAll('.sf').forEach(c => c.classList.remove('active'));
-  const allChip  = document.querySelector('.sf[data-s=""]');
-  if (allChip) allChip.classList.add('active');
+  document.querySelectorAll('.sf[data-v]').forEach(c => c.classList.remove('active'));
   const chip = document.querySelector(`.sf[data-v="${v}"]`);
   if (chip) chip.classList.add('active');
 
@@ -74,7 +67,6 @@ export function venueFilter(v) {
 export function kpiFilter(platform, status) {
   state.filterPlatform = platform;
   state.filterStatus   = status;
-  state.filterVenue    = '';
   state.filterQ        = '';
   document.getElementById('q').value = '';
 
@@ -83,8 +75,7 @@ export function kpiFilter(platform, status) {
   const chip = document.getElementById(chipMap[platform] || 'cf-all');
   if (chip) chip.classList.add('active');
 
-  document.querySelectorAll('.sf').forEach(c => c.classList.remove('active'));
-  document.querySelectorAll('.sf').forEach(c => {
+  document.querySelectorAll('.sf[data-s]').forEach(c => {
     if (c.dataset.s === status) c.classList.add('active');
     if (!status && c.dataset.s === '') c.classList.add('active');
   });
