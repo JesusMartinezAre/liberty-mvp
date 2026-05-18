@@ -4,6 +4,21 @@
 import { showToast }  from './toast.js';
 import { getFiltered, statusConfig } from './render.js';
 
+async function _urlToDataUri(url) {
+  try {
+    const res  = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror   = () => resolve('');
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return '';
+  }
+}
+
 export function exportExcel() {
   if (typeof XLSX === 'undefined') { showToast('⚠ Excel library not loaded'); return; }
   const f = getFiltered();
@@ -41,15 +56,29 @@ export function exportExcel() {
   }
 }
 
-export function exportPDF() {
-  const f    = getFiltered();
+export async function exportPDF() {
+  const f = getFiltered();
+  const w = window.open('', '_blank');
+  if (!w) { showToast('⚠ Pop-up blocked — please allow pop-ups for this site'); return; }
+  showToast('⏳ Generating PDF — downloading images…');
+
+  const thumbUrls = [...new Set(
+    f.flatMap(d => (d.photos || []).map(p => {
+      const rawUrl = typeof p === 'string' ? p : p.url;
+      return rawUrl.replace(/\/upload\//, '/upload/w_80,h_80,c_fill,q_60/');
+    }))
+  )];
+  const dataUris   = await Promise.all(thumbUrls.map(url => _urlToDataUri(url)));
+  const dataUriMap = Object.fromEntries(thumbUrls.map((url, i) => [url, dataUris[i]]));
+
   const cols = ['DH S/N','Controller','Ctrl S/N','Router S/N','SIM Card','Content','Venue','Section','Location','Technician','Status','Evidence'];
   const rows = f.map(d => {
-    const photos  = (d.photos || []);
-    const thumbs  = '<div class="ev-wrap">' + photos.map(url => {
-      const rawUrl = typeof url === 'string' ? url : url.url;
+    const photos = (d.photos || []);
+    const thumbs = '<div class="ev-wrap">' + photos.map(p => {
+      const rawUrl = typeof p === 'string' ? p : p.url;
       const t      = rawUrl.replace(/\/upload\//, '/upload/w_80,h_80,c_fill,q_60/');
-      return `<img class="ev-thumb" src="${t}" alt="">`;
+      const src    = dataUriMap[t] || '';
+      return src ? `<img class="ev-thumb" src="${src}" alt="">` : '';
     }).join('') + '</div>';
     return [
       d.digitalHeader,
@@ -71,8 +100,8 @@ export function exportPDF() {
     th{background:#F40009;color:#fff;padding:4px 5px;text-align:left;font-size:7px;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap}
     td{padding:3px 5px;border-bottom:1px solid #eee;font-size:7px;white-space:nowrap;vertical-align:middle}
     .ev-cell{white-space:normal;vertical-align:top;padding:3px 4px}
-    .ev-wrap{display:flex;flex-wrap:wrap;gap:3px;max-width:180px}
-    .ev-thumb{width:38px;height:38px;object-fit:cover;border-radius:3px;flex-shrink:0}
+    .ev-wrap{display:block;max-width:174px;line-height:0;font-size:0}
+    .ev-thumb{display:inline-block;width:38px;height:38px;object-fit:cover;border-radius:3px;margin:2px}
     tr:nth-child(even) td{background:#f9f9f9}
     .s0{color:#888}.s1{color:#3b82f6}.s2{color:#f59e0b}.s3{color:#a855f7}.s4{color:#22c55e;font-weight:700}
   `;
@@ -94,11 +123,10 @@ export function exportPDF() {
     <h2>Coca-Cola Liberty — Digital Display Inventory</h2>
     <p>Generated: ${new Date().toLocaleString()} · ${f.length} units</p>
     <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
-    <script>window.onload=function(){var imgs=Array.from(document.images);if(!imgs.length){window.print();return;}var done=0;function p(){if(++done>=imgs.length)window.print();}imgs.forEach(function(im){if(im.complete){p();}else{im.addEventListener('load',p);im.addEventListener('error',p);}});}<\/script>
+    <script>window.onload=function(){window.print();}<\/script>
     </body></html>`;
 
-  const w = window.open('', '_blank');
-  if (w) { w.document.write(htmlContent); w.document.close(); }
-  else   { showToast('⚠ Pop-up blocked — please allow pop-ups for this site'); return; }
+  w.document.write(htmlContent);
+  w.document.close();
   showToast('✓ PDF ready to print');
 }

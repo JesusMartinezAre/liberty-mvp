@@ -768,6 +768,21 @@ export function toggleFieldMode() {
 }
 
 // ── SINGLE-UNIT EXPORT ────────────────────────────────────────────────────────
+async function _urlToDataUri(url) {
+  try {
+    const res  = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror   = () => resolve('');
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return '';
+  }
+}
+
 export async function exportUnitExcel() {
   if (typeof XLSX === 'undefined') { showToast('⚠ Excel library not loaded'); return; }
   if (!state.currentModalId) { showToast('No unit selected'); return; }
@@ -823,12 +838,21 @@ export async function exportUnitPDF() {
   if (!state.currentModalId) { showToast('No unit selected'); return; }
   const d = state.DATA.find(x => x.id === state.currentModalId);
   if (!d) return;
-  showToast('⏳ Preparing export…');
 
-  const photos = (d.photos || []).map(p => ({
-    url: p.url.replace('/upload/', '/upload/w_600,q_80/'),
-    ts:  typeof p.uploadedAt === 'string' ? p.uploadedAt : '',
-  }));
+  const w = window.open('', '_blank');
+  if (!w) { showToast('⚠ Pop-up blocked — please allow pop-ups for this site'); return; }
+  showToast('⏳ Generating PDF — downloading images…');
+
+  const photos = await Promise.all(
+    (d.photos || []).map(async p => {
+      const rawUrl = typeof p === 'string' ? p : p.url;
+      const url    = rawUrl.replace(/\/upload\//, '/upload/w_600,q_80/');
+      return {
+        src: (await _urlToDataUri(url)) || '',
+        ts:  typeof p.uploadedAt === 'string' ? p.uploadedAt : '',
+      };
+    })
+  );
 
   const sc          = statusConfig(d.status);
   const statusColor = sc.color
@@ -851,19 +875,19 @@ export async function exportUnitPDF() {
     ['Bottler',            d.bottler],
   ];
 
-  const rows     = fields.map(([k, v]) => `
+  const rows    = fields.map(([k, v]) => `
     <tr>
       <td style="font-weight:600;color:#555;width:160px;padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:10px;text-transform:uppercase;letter-spacing:.5px">${k}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#111">${v || '—'}</td>
     </tr>`).join('');
-  const mapsUrl  = d.lat ? `https://maps.google.com/maps?daddr=${d.lat},${d.lng}&dirflg=w` : null;
+  const mapsUrl = d.lat ? `https://maps.google.com/maps?daddr=${d.lat},${d.lng}&dirflg=w` : null;
   const photoGrid = photos.length > 0
     ? `<div style="margin-top:20px">
         <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#F40009;margin-bottom:12px">Photo Evidence (${photos.length})</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:800px">
+        <div style="max-width:820px;font-size:0;line-height:0">
           ${photos.map(p => `
-            <div style="break-inside:avoid">
-              <img src="${p.url}" style="width:100%;max-height:280px;object-fit:cover;border-radius:6px;border:1px solid #eee;display:block">
+            <div style="display:inline-block;vertical-align:top;width:49%;margin:0.5%;box-sizing:border-box;break-inside:avoid">
+              ${p.src ? `<img src="${p.src}" style="width:100%;max-height:280px;object-fit:cover;border-radius:6px;border:1px solid #eee;display:block">` : ''}
               ${p.ts ? `<div style="font-size:8px;color:#aaa;margin-top:4px;text-align:center">${p.ts}</div>` : ''}
             </div>`).join('')}
         </div>
@@ -899,22 +923,11 @@ export async function exportUnitPDF() {
       <span>Generated: ${new Date().toLocaleString()}</span>
       <span>POP Atelier LLC · popatelier.net</span>
     </div>
-    <script>
-      window.onload = () => {
-        const imgs = document.querySelectorAll('img');
-        if (!imgs.length) { window.print(); return; }
-        let loaded = 0;
-        imgs.forEach(img => {
-          if (img.complete) { loaded++; if (loaded === imgs.length) window.print(); }
-          else { img.onload = img.onerror = () => { loaded++; if (loaded === imgs.length) window.print(); }; }
-        });
-      };
-    <\/script>
+    <script>window.onload=function(){window.print();};<\/script>
   </body></html>`;
 
-  const w = window.open('', '_blank');
-  if (w) { w.document.write(htmlContent); w.document.close(); }
-  else   { showToast('⚠ Pop-up blocked — please allow pop-ups for this site'); return; }
+  w.document.write(htmlContent);
+  w.document.close();
   showToast('✓ PDF ready to print');
 }
 
