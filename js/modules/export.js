@@ -99,9 +99,9 @@ export async function exportPDF() {
     table{width:100%;border-collapse:collapse}
     th{background:#F40009;color:#fff;padding:4px 5px;text-align:left;font-size:7px;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap}
     td{padding:3px 5px;border-bottom:1px solid #eee;font-size:7px;white-space:nowrap;vertical-align:middle}
-    .ev-cell{white-space:normal;vertical-align:top;padding:3px 4px}
-    .ev-wrap{display:block;max-width:174px;line-height:0;font-size:0}
-    .ev-thumb{display:inline-block;width:38px;height:38px;object-fit:cover;border-radius:3px;margin:2px}
+    .ev-cell{white-space:normal;vertical-align:top;padding:3px 4px;min-width:130px}
+    .ev-wrap{display:block;width:120px;line-height:0;font-size:0}
+    .ev-thumb{display:inline-block;width:36px;height:36px;object-fit:cover;border-radius:3px;margin:2px}
     tr:nth-child(even) td{background:#f9f9f9}
     .s0{color:#888}.s1{color:#3b82f6}.s2{color:#f59e0b}.s3{color:#a855f7}.s4{color:#22c55e;font-weight:700}
   `;
