@@ -863,7 +863,7 @@ export async function exportUnitPDF() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:800px">
           ${photos.map(p => `
             <div style="break-inside:avoid">
-              <img src="${p.url}" style="width:100%;max-height:280px;object-fit:cover;border-radius:6px;border:1px solid #eee;display:block" crossorigin="anonymous">
+              <img src="${p.url}" style="width:100%;max-height:280px;object-fit:cover;border-radius:6px;border:1px solid #eee;display:block">
               ${p.ts ? `<div style="font-size:8px;color:#aaa;margin-top:4px;text-align:center">${p.ts}</div>` : ''}
             </div>`).join('')}
         </div>
@@ -912,17 +912,10 @@ export async function exportUnitPDF() {
     <\/script>
   </body></html>`;
 
-  const blob    = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-  const a       = document.createElement('a');
-  a.href        = blobUrl;
-  a.target      = '_blank';
-  a.download    = `${d.digitalHeader}_Liberty.html`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-  showToast('✓ PDF ready — open and print');
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(htmlContent); w.document.close(); }
+  else   { showToast('⚠ Pop-up blocked — please allow pop-ups for this site'); return; }
+  showToast('✓ PDF ready to print');
 }
 
 // ── TEST EMAIL ────────────────────────────────────────────────────────────────

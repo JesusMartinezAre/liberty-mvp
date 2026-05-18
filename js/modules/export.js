@@ -97,15 +97,8 @@ export function exportPDF() {
     <script>window.onload=function(){var imgs=Array.from(document.images);if(!imgs.length){window.print();return;}var done=0;function p(){if(++done>=imgs.length)window.print();}imgs.forEach(function(im){if(im.complete){p();}else{im.addEventListener('load',p);im.addEventListener('error',p);}});}<\/script>
     </body></html>`;
 
-  const blob   = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-  const a      = document.createElement('a');
-  a.href       = blobUrl;
-  a.target     = '_blank';
-  a.download   = `Liberty_Inventory_${Date.now()}.html`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(htmlContent); w.document.close(); }
+  else   { showToast('⚠ Pop-up blocked — please allow pop-ups for this site'); return; }
   showToast('✓ PDF ready to print');
 }
