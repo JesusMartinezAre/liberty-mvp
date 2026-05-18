@@ -870,7 +870,7 @@ export async function exportUnitPDF() {
       </div>`
     : '<div style="margin-top:16px;padding:12px;background:#f9f9f9;border-radius:6px;font-size:10px;color:#aaa;text-align:center">No photos uploaded</div>';
 
-  const htmlContent = `<!DOCTYPE html><html><head>
+  const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
     <title>${d.digitalHeader} — Coca-Cola Liberty</title>
     <style>
       @page{size:A4;margin:15mm}

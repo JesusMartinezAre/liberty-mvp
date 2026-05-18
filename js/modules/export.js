@@ -45,12 +45,12 @@ export function exportPDF() {
   const f    = getFiltered();
   const cols = ['DH S/N','Controller','Ctrl S/N','Router S/N','SIM Card','Content','Venue','Section','Location','Technician','Status','Evidence'];
   const rows = f.map(d => {
-    const photos  = (d.photos || []).slice(0, 2);
-    const thumbs  = photos.map(url => {
+    const photos  = (d.photos || []);
+    const thumbs  = '<div class="ev-wrap">' + photos.map(url => {
       const rawUrl = typeof url === 'string' ? url : url.url;
       const t      = rawUrl.replace(/\/upload\//, '/upload/w_80,h_80,c_fill,q_60/');
       return `<img class="ev-thumb" src="${t}" alt="">`;
-    }).join('');
+    }).join('') + '</div>';
     return [
       d.digitalHeader,
       d.controller,      d.controllerSN||'—', d.routerSN||'—', d.simCard||'—',
@@ -70,20 +70,26 @@ export function exportPDF() {
     table{width:100%;border-collapse:collapse}
     th{background:#F40009;color:#fff;padding:4px 5px;text-align:left;font-size:7px;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap}
     td{padding:3px 5px;border-bottom:1px solid #eee;font-size:7px;white-space:nowrap;vertical-align:middle}
-    .ev-thumb{width:40px;height:40px;object-fit:cover;border-radius:3px;margin-right:3px;vertical-align:middle}
-    .ev-more{font-size:6px;color:#666;vertical-align:middle}
+    .ev-cell{white-space:normal;vertical-align:top;padding:3px 4px}
+    .ev-wrap{display:flex;flex-wrap:wrap;gap:3px;max-width:180px}
+    .ev-thumb{width:38px;height:38px;object-fit:cover;border-radius:3px;flex-shrink:0}
     tr:nth-child(even) td{background:#f9f9f9}
     .s0{color:#888}.s1{color:#3b82f6}.s2{color:#f59e0b}.s3{color:#a855f7}.s4{color:#22c55e;font-weight:700}
   `;
-  const sc         = s => ({'In Assembly':'s0','Completed':'s1','Shipped':'s2','With Client':'s3','Installed at Venue':'s4'}[s] || '');
-  const STATUS_IDX = cols.indexOf('Status');
-  const thead      = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
-  const tbody      = rows.map(r => {
-    const cells = r.map((v, i) => i === STATUS_IDX ? `<td class="${sc(v)}">${v}</td>` : `<td>${v}</td>`).join('');
+  const sc           = s => ({'In Assembly':'s0','Completed':'s1','Shipped':'s2','With Client':'s3','Installed at Venue':'s4'}[s] || '');
+  const STATUS_IDX   = cols.indexOf('Status');
+  const EVIDENCE_IDX = cols.indexOf('Evidence');
+  const thead        = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+  const tbody        = rows.map(r => {
+    const cells = r.map((v, i) => {
+      if (i === STATUS_IDX)   return `<td class="${sc(v)}">${v}</td>`;
+      if (i === EVIDENCE_IDX) return `<td class="ev-cell">${v}</td>`;
+      return `<td>${v}</td>`;
+    }).join('');
     return `<tr>${cells}</tr>`;
   }).join('');
 
-  const htmlContent = `<!DOCTYPE html><html><head><title>Coca-Cola Liberty Inventory</title>
+  const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Coca-Cola Liberty Inventory</title>
     <style>${styles}</style></head><body>
     <h2>Coca-Cola Liberty — Digital Display Inventory</h2>
     <p>Generated: ${new Date().toLocaleString()} · ${f.length} units</p>
