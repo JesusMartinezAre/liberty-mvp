@@ -19,36 +19,151 @@ async function _urlToDataUri(url) {
   }
 }
 
-export function exportExcel() {
-  if (typeof XLSX === 'undefined') { showToast('⚠ Excel library not loaded'); return; }
+async function _stitchThumbs(photos) {
+  const THUMB = 60, GAP = 3, CAP = 4;
+  const uris = await Promise.all(
+    (photos || []).slice(0, CAP).map(p => {
+      const rawUrl = typeof p === 'string' ? p : p.url;
+      return _urlToDataUri(rawUrl.replace(/\/upload\//, `/upload/w_${THUMB},h_${THUMB},c_fill,q_70/`));
+    })
+  );
+  const valid = uris.filter(Boolean);
+  if (!valid.length) return null;
+
+  const canvas  = document.createElement('canvas');
+  canvas.width  = valid.length * (THUMB + GAP) - GAP;
+  canvas.height = THUMB;
+  const ctx     = canvas.getContext('2d');
+
+  await Promise.all(valid.map((uri, i) => new Promise(resolve => {
+    const img   = new Image();
+    img.onload  = () => { ctx.drawImage(img, i * (THUMB + GAP), 0, THUMB, THUMB); resolve(); };
+    img.onerror = resolve;
+    img.src     = uri;
+  })));
+
+  return canvas.toDataURL('image/jpeg', 0.82).split(',')[1];
+}
+
+export async function exportExcel() {
+  if (typeof ExcelJS === 'undefined') { showToast('⚠ ExcelJS library not loaded'); return; }
   const f = getFiltered();
+  showToast('⏳ Building Excel — fetching images…');
+
+  const STATUS_COLORS = {
+    'In Assembly':        'FF888888',
+    'Completed':          'FF3B82F6',
+    'Shipped':            'FFF59E0B',
+    'With Client':        'FFA855F7',
+    'Installed at Venue': 'FF22C55E',
+  };
+
   try {
-    const rows = [
-      ['DH S/N','Controller','Ctrl S/N','Router S/N','SIM Card','Content','Venue','Section','Location','Technician','Status'],
-      ...f.map(d => [
-        d.digitalHeader||'—',
-        d.controller||'—',   d.controllerSN||'—', d.routerSN||'—', d.simCard||'—',
-        d.content||'—',
-        d.venueName||'—',
-        d.zone||'—',
-        d.location||'—',
-        d.technician||'—',
-        d.status||'—',
-      ]),
+    const workbook  = new ExcelJS.Workbook();
+    workbook.creator = 'POP Atelier LLC';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Liberty Inventory', {
+      views:     [{ state: 'frozen', ySplit: 1 }],
+      pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, paperSize: 9 },
+    });
+
+    sheet.columns = [
+      { header: 'DH S/N',      key: 'digitalHeader', width: 18 },
+      { header: 'Controller',  key: 'controller',    width: 14 },
+      { header: 'Ctrl S/N',    key: 'controllerSN',  width: 16 },
+      { header: 'Router S/N',  key: 'routerSN',      width: 16 },
+      { header: 'SIM Card',    key: 'simCard',        width: 13 },
+      { header: 'Content',     key: 'content',        width: 16 },
+      { header: 'Venue',       key: 'venueName',      width: 26 },
+      { header: 'Section',     key: 'zone',           width: 16 },
+      { header: 'Location',    key: 'location',       width: 30 },
+      { header: 'Technician',  key: 'technician',     width: 18 },
+      { header: 'Status',      key: 'status',         width: 20 },
+      { header: 'Evidence',    key: 'evidence',       width: 34 },
     ];
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [
-      {wch:16},{wch:18},{wch:16},{wch:16},{wch:14},{wch:16},{wch:22},{wch:16},{wch:24},{wch:16},{wch:20},
-    ];
-    try {
-      const hdrStyle = { font: { bold: true }, fill: { fgColor: { rgb: 'F40009' } }, alignment: { horizontal: 'center' } };
-      ['A1','B1','C1','D1','E1','F1','G1','H1','I1','J1','K1'].forEach(cell => {
-        if (ws[cell]) ws[cell].s = hdrStyle;
+
+    // ── Header row styling ─────────────────────────────────────────────────────
+    const headerRow = sheet.getRow(1);
+    headerRow.height = 22;
+    headerRow.eachCell(cell => {
+      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF40009' } };
+      cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9, name: 'Arial' };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+      cell.border    = { bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
+    });
+
+    // ── Data rows ──────────────────────────────────────────────────────────────
+    for (let i = 0; i < f.length; i++) {
+      const d      = f[i];
+      const rowIdx = i + 1;   // 0-based for image anchoring (header = 0, first data = 1)
+
+      const row = sheet.addRow({
+        digitalHeader: d.digitalHeader || '—',
+        controller:    d.controller    || '—',
+        controllerSN:  d.controllerSN  || '—',
+        routerSN:      d.routerSN      || '—',
+        simCard:       d.simCard       || '—',
+        content:       d.content       || '—',
+        venueName:     d.venueName !== '—' ? d.venueName : (d.venue || '—'),
+        zone:          d.zone          || '—',
+        location:      d.location      || '—',
+        technician:    d.technician    || '—',
+        status:        d.status        || '—',
+        evidence:      '',
       });
-    } catch (_) { /* styling not supported — plain download proceeds */ }
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Liberty Inventory');
-    XLSX.writeFile(wb, 'CocaCola_Liberty_Inventory.xlsx');
+
+      row.height = 68;
+
+      // Alternating row shading
+      if (i % 2 === 0) {
+        row.eachCell({ includeEmpty: true }, cell => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9F9F9' } };
+        });
+      }
+
+      // Cell base styling
+      row.eachCell({ includeEmpty: true }, cell => {
+        cell.border    = { bottom: { style: 'hair', color: { argb: 'FFEEEEEE' } } };
+        cell.alignment = { vertical: 'middle', wrapText: false };
+        cell.font      = { name: 'Arial', size: 8 };
+      });
+
+      // Status colour
+      const argb = STATUS_COLORS[d.status];
+      if (argb) {
+        const sc = row.getCell('status');
+        sc.font  = { name: 'Arial', size: 8, color: { argb }, bold: d.status === 'Installed at Venue' };
+      }
+
+      // Evidence image — stitch thumbnails onto a canvas, embed the single JPEG
+      const photos = d.photos || [];
+      if (photos.length) {
+        const base64 = await _stitchThumbs(photos);
+        if (base64) {
+          const imgId = workbook.addImage({ base64, extension: 'jpeg' });
+          sheet.addImage(imgId, {
+            tl:     { col: 11, row: rowIdx },
+            br:     { col: 12, row: rowIdx + 1 },
+            editAs: 'oneCell',
+          });
+        }
+      }
+    }
+
+    // ── Download ───────────────────────────────────────────────────────────────
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob   = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a   = Object.assign(document.createElement('a'), {
+      href: url, download: 'CocaCola_Liberty_Inventory.xlsx',
+    });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
     showToast('✓ Excel exported');
   } catch (e) {
     showToast('⚠ Export failed — ' + e.message);
