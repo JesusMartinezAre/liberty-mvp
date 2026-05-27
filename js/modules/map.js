@@ -39,6 +39,51 @@ function _attachImgHandlers(mapImg, imageUrl) {
   };
 }
 
+// ── ADMIN MAPPER (Phase 1 — Lincoln %) ───────────────────────────────────────
+// Developer calibration tool. When the active venue is 'lincoln', clicking
+// anywhere on the map image logs, toasts, and copies the click position as
+// percentages relative to the image's rendered size.
+// Usage: switch to Lincoln, open DevTools console, click each zone center.
+// Copy the logged { x, y } pairs into VENUE_CONFIG.lincoln.pins.
+// ─────────────────────────────────────────────────────────────────────────────
+let _mapperAttached = false;
+
+function _initAdminMapper() {
+  if (_mapperAttached) return;
+  const mapImg = document.getElementById('map-base-img');
+  if (!mapImg) return;
+  const wrapper = mapImg.parentElement;
+  if (!wrapper) return;
+
+  wrapper.addEventListener('click', e => {
+    // Only active for lincoln during the calibration phase
+    if (state.currentVenue !== 'lincoln') return;
+
+    // getBoundingClientRect gives accurate coords regardless of zoom / scroll /
+    // CSS transform, and survives window resizes — more reliable than offsetX.
+    const rect = mapImg.getBoundingClientRect();
+    const xPct = ((e.clientX - rect.left) / rect.width  * 100).toFixed(2);
+    const yPct = ((e.clientY - rect.top)  / rect.height * 100).toFixed(2);
+
+    const display  = `x: ${xPct}%,  y: ${yPct}%`;
+    const clipText = `{ x: ${xPct}, y: ${yPct} }`;
+
+    // 1. Console — full context row for DevTools
+    console.log(`[MAP ADMIN] 📍 ${display}`);
+
+    // 2. Toast — instant visual confirmation on-screen
+    showToast(`📍 ${display}`);
+
+    // 3. Clipboard — paste straight into VENUE_CONFIG
+    navigator.clipboard?.writeText(clipText)
+      .then(()  => console.log(`[MAP ADMIN] ✅ Copied → ${clipText}`))
+      .catch(err => console.warn('[MAP ADMIN] ⚠️ Clipboard write failed:', err));
+  });
+
+  _mapperAttached = true;
+  console.log('[MAP ADMIN] ✅ Admin Mapper active — click the Lincoln map to capture % coords.');
+}
+
 // ── VENUE CONFIGURATION ───────────────────────────────────────────────────────
 // Single source of truth for each venue's seating chart image, SVG pin
 // coordinates, and Areas & Units list.
@@ -81,20 +126,9 @@ const VENUE_CONFIG = {
   },
 
   lincoln: {
-    imageUrl: '/assets/maps/lincoln.jpeg',
+    imageUrl: '/assets/maps/lincoln.png',
     pins: {
-      '100-north': { x:490, y:188, label:'100s North' },
-      '100-south': { x:490, y:420, label:'100s South' },
-      '100-east':  { x:620, y:308, label:'100s East'  },
-      '100-west':  { x:360, y:308, label:'100s West'  },
-      '200-north': { x:490, y:135, label:'200s North' },
-      '200-south': { x:490, y:478, label:'200s South' },
-      '200-east':  { x:668, y:308, label:'200s East'  },
-      '200-west':  { x:312, y:308, label:'200s West'  },
-      '300-north': { x:490, y:82,  label:'300s North' },
-      '300-south': { x:490, y:532, label:'300s South' },
-      '300-east':  { x:712, y:308, label:'300s East'  },
-      '300-west':  { x:268, y:308, label:'300s West'  },
+      // Phase 1 — pins cleared; use Admin Mapper to capture %-based coords.
     },
     areas: [
       { id:'100-north', label:'100s North', sub:'Lower Bowl — North End',  color:'#3b82f6', slots:10 },
@@ -155,6 +189,7 @@ export function setVenue(v, el) {
 
 // ── MAP RENDERER ──────────────────────────────────────────────────────────────
 export function renderStadiumMap() {
+  _initAdminMapper();   // no-op after first call; safe to call on every render
   const cfg    = VENUE_CONFIG[state.currentVenue] || VENUE_CONFIG.metlife;
   const svg    = document.getElementById('stadium-svg');
   const mapImg = document.getElementById('map-base-img');

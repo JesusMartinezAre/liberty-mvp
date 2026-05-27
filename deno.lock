@@ -11,7 +11,10 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@node-saml/node-saml@^5.1.0",
+        "npm:bcryptjs@^2.4.3",
         "npm:firebase-admin@^13.8.0",
+        "npm:jose@^6.2.3",
         "npm:vite@^8.0.10"
       ]
     }
