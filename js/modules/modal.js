@@ -29,6 +29,35 @@ function _openTechModal(action, subtitle, btnLabel, payload = null) {
 }
 
 // ── VENUE + ZONE FLOATING DROPDOWNS ──────────────────────────────────────────
+// Cross-platform event architecture — eliminates the focus/blur race condition.
+//
+// Root cause of the mobile bug:
+//   Touch event sequence:  pointerdown → blur (previous element) → pointerup → click
+//   The original blur handler closed the dropdown BEFORE click fired on the option,
+//   so the selection was lost. The 150ms setTimeout was a fragile race patch.
+//
+// Fix — two mechanisms working together:
+//   1. mousedown + e.preventDefault() on options (desktop):
+//      preventDefault() tells the browser "do not move focus". The input stays
+//      focused, blur never fires, and the race cannot occur.
+//   2. touchend on options (mobile):
+//      touchend fires only for genuine taps — if the user's finger moves enough
+//      to trigger a scroll, iOS fires touchcancel instead, so no accidental
+//      selection during list scrolling. preventDefault() suppresses the synthetic
+//      mousedown/click that would otherwise be synthesized ~300ms later.
+//   3. blur handler only closes on keyboard Tab-away (relatedTarget is set and
+//      lives outside the widget). Mobile blur fires with relatedTarget=null —
+//      those cases are safely handled by the document pointerdown listener.
+//   4. document pointerdown (capture, not mousedown) fires on both mouse clicks
+//      AND touch taps — single cross-platform outside-click close handler.
+//
+// Close triggers (in priority order):
+//   mousedown / touchend on option  → select → close      (all platforms)
+//   document pointerdown outside    → close               (all platforms)
+//   input blur with relatedTarget   → close               (keyboard Tab only)
+//   Escape keydown                  → close               (keyboard)
+//   closeModal()                    → _closeAllDropdowns() (modal dismissed)
+// ─────────────────────────────────────────────────────────────────────────────
 let _venueOptions   = [];   // { label, value }[] — refreshed each openModal
 let _zoneOptions    = [];   // string[]            — refreshed each openModal
 let _dropdownsBound = false;
@@ -43,8 +72,21 @@ function _buildDropdownRows(dropdown, items, onSelect) {
     .map(item => `<div class="field-dropdown-item" data-value="${item.value.replace(/"/g, '&quot;')}">${item.label}</div>`)
     .join('');
   dropdown.querySelectorAll('.field-dropdown-item[data-value]').forEach(row => {
+    // ── Desktop: mousedown + preventDefault ──────────────────────────────────
+    // Fires before blur in the mouse event sequence. e.preventDefault() blocks
+    // the browser from moving focus, so blur never fires on the input.
     row.addEventListener('mousedown', e => {
-      e.preventDefault();   // prevent blur firing before value is set
+      e.preventDefault();
+      onSelect(row.dataset.value);
+      _closeAllDropdowns();
+    });
+    // ── Mobile: touchend ─────────────────────────────────────────────────────
+    // Fires only for genuine taps (scroll gestures → touchcancel, not touchend).
+    // Safe to use in a scrollable dropdown list — scroll never triggers selection.
+    // e.preventDefault() blocks the 300ms-delayed synthetic click/mousedown that
+    // iOS synthesizes after every touch sequence, preventing double-action.
+    row.addEventListener('touchend', e => {
+      e.preventDefault();
       onSelect(row.dataset.value);
       _closeAllDropdowns();
     });
@@ -59,6 +101,47 @@ function _openDropdown(dropdownEl, items, onSelect) {
 
 function _closeAllDropdowns() {
   document.querySelectorAll('.field-dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+// ── Chevron toggle button ─────────────────────────────────────────────────────
+// Appended to the input's position:relative wrapper as the last sibling so the
+// CSS selector `.field-dropdown.open ~ .field-dropdown-chevron svg` can rotate
+// the icon purely via CSS without any JS class toggling.
+//
+// pointerdown + e.preventDefault() means the chevron never steals focus from the
+// input and never raises the mobile keyboard when tapped. The input stays focused,
+// ready for the user to type to filter the list.
+// ─────────────────────────────────────────────────────────────────────────────
+function _injectChevron(inputEl, dropdownEl, getItems, onSelect) {
+  if (inputEl.parentElement.querySelector('.field-dropdown-chevron')) return; // idempotent
+
+  // Push text away from the right edge so it doesn't slide under the chevron.
+  // box-sizing:border-box is already set inline on the input, so paddingRight
+  // is subtracted from the content width — outer width stays 100%.
+  inputEl.style.paddingRight = '38px';
+
+  const btn = document.createElement('button');
+  btn.type      = 'button';
+  btn.className = 'field-dropdown-chevron';
+  btn.setAttribute('aria-label', 'Toggle dropdown');
+  btn.setAttribute('tabindex', '-1');   // chevron is not a keyboard stop; Tab goes to next field
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">`
+    + `<path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
+    + `</svg>`;
+
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();   // don't shift focus, don't raise mobile keyboard
+    if (dropdownEl.classList.contains('open')) {
+      _closeAllDropdowns();
+    } else {
+      _openDropdown(dropdownEl, getItems(), val => {
+        inputEl.value = val;
+        onSelect(val);
+      });
+    }
+  });
+
+  inputEl.parentElement.appendChild(btn);
 }
 
 function _bindDropdownInputs() {
@@ -82,7 +165,22 @@ function _bindDropdownInputs() {
       const visible = q ? _venueOptions.filter(o => o.label.toLowerCase().includes(q)) : _venueOptions;
       _buildDropdownRows(venueDrop, visible, val => { venueInput.value = val; _closeAllDropdowns(); });
     });
-    venueInput.addEventListener('blur', () => setTimeout(_closeAllDropdowns, 150));
+    // Blur: close only on real keyboard Tab-away. relatedTarget is null for
+    // touch-triggered blur events — those are covered by the document
+    // pointerdown listener registered below.
+    venueInput.addEventListener('blur', e => {
+      const wrapper = venueInput.parentElement;
+      if (e.relatedTarget && !wrapper?.contains(e.relatedTarget)) _closeAllDropdowns();
+    });
+
+    _injectChevron(
+      venueInput, venueDrop,
+      () => {
+        const q = venueInput.value.trim().toLowerCase();
+        return q ? _venueOptions.filter(o => o.label.toLowerCase().includes(q)) : _venueOptions;
+      },
+      () => {},   // value already written to input inside _buildDropdownRows onSelect
+    );
   }
 
   if (zoneInput && zoneDrop) {
@@ -99,15 +197,36 @@ function _bindDropdownInputs() {
       _buildDropdownRows(zoneDrop, q ? opts.filter(o => o.label.toLowerCase().includes(q)) : opts,
         val => { zoneInput.value = val; _closeAllDropdowns(); });
     });
-    zoneInput.addEventListener('blur', () => setTimeout(_closeAllDropdowns, 150));
+    zoneInput.addEventListener('blur', e => {
+      const wrapper = zoneInput.parentElement;
+      if (e.relatedTarget && !wrapper?.contains(e.relatedTarget)) _closeAllDropdowns();
+    });
+
+    _injectChevron(
+      zoneInput, zoneDrop,
+      () => {
+        const q    = zoneInput.value.trim().toLowerCase();
+        const opts = _zoneOptions.map(z => ({ label: z, value: z }));
+        return q ? opts.filter(o => o.label.toLowerCase().includes(q)) : opts;
+      },
+      () => {},
+    );
   }
 
-  // Outside-click dismissal (desktop)
-  document.addEventListener('mousedown', e => {
-    if (e.target.id === 'm-venue-sel' || e.target.id === 'm-zone-sel') return;
-    document.querySelectorAll('.field-dropdown.open').forEach(d => {
-      if (!d.contains(e.target)) d.classList.remove('open');
-    });
+  // ── Escape key: close any open dropdown ──────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') _closeAllDropdowns();
+  });
+
+  // ── Outside-click close ───────────────────────────────────────────────────
+  // pointerdown (not mousedown) fires on both mouse clicks and touch taps —
+  // the single cross-platform outside-click handler. Capture phase (true)
+  // ensures it runs before any element-level handlers on the same gesture,
+  // so a tap outside closes the dropdown before any other element reacts.
+  document.addEventListener('pointerdown', e => {
+    const insideVenue = venueInput?.parentElement?.contains(e.target);
+    const insideZone  = zoneInput?.parentElement?.contains(e.target);
+    if (!insideVenue && !insideZone) _closeAllDropdowns();
   }, true);
 }
 

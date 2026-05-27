@@ -756,6 +756,22 @@ body.field-mode #loc-field, body.field-mode #m-section, body.field-mode .keep { 
   overflow: hidden;
   text-overflow: ellipsis;
   transition: background .1s, color .1s;
+  /* ── Touch hardening ──────────────────────────────────────────────────────
+     min-height:44px + flex centering   — WCAG 2.5.5 minimum touch target,
+       vertically centers text without breaking text-overflow:ellipsis
+       (overflow:hidden + white-space:nowrap still apply on the flex container).
+     touch-action:manipulation          — eliminates the 300ms iOS double-tap
+       delay; the browser no longer waits to see if a second tap follows.
+     -webkit-tap-highlight-color        — removes iOS's gray tap-flash rect.
+     user-select / -webkit-user-select  — prevents long-press text selection
+       from intercepting what should be a tap-to-select gesture.            */
+  min-height                 : 44px;
+  display                    : flex;
+  align-items                : center;
+  touch-action               : manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select        : none;
+  user-select                : none;
 }
 .field-dropdown-item:last-child { border-bottom: none; }
 .field-dropdown-item:hover,
@@ -770,6 +786,72 @@ body.field-mode #loc-field, body.field-mode #m-section, body.field-mode .keep { 
   cursor: default;
   pointer-events: none;
 }
+
+/* ── Chevron toggle button — sits inside the input's position:relative wrapper.
+   Injected by JS (_injectChevron). Uses pointerdown+preventDefault so it
+   never steals focus from the input and never raises the mobile keyboard.
+   The SVG rotates 180° via the general-sibling selector when .field-dropdown
+   gains the .open class — pure CSS, no JS class toggling needed.
+
+   INTEGRATION NOTE:
+   -webkit-appearance / appearance: none  — CRITICAL cross-platform reset.
+     iOS Safari and Android Chrome apply appearance:button to <button> elements
+     by default, rendering the OS's native button chrome (a light rounded rect)
+     that completely ignores background:transparent. Without this reset the
+     chevron appears as a white/gray box overlaid on the dark input surface.
+   background: transparent !important     — belt-and-suspenders against any
+     residual UA stylesheet rule that survives the appearance reset.
+   No hover/active background             — any rgba highlight on the chevron
+     zone makes it look like a separate control; colour-only hover keeps the
+     field reading as one unified element.                                    */
+.field-dropdown-chevron {
+  /* ── Positioning — inset 1 px from each edge of the input border ───── */
+  position                   : absolute;
+  right                      : 1px;
+  top                        : 50%;
+  transform                  : translateY(-50%);
+  width                      : 34px;
+  height                     : calc(100% - 2px);   /* fills input height minus 1px top & bottom */
+  min-height                 : 34px;               /* absolute floor for hit-target safety */
+
+  /* ── Appearance reset — must come before background ─────────────────── */
+  -webkit-appearance         : none;   /* kills iOS Safari / Android default button chrome */
+  appearance                 : none;
+  outline                    : none;   /* no focus ring (tabindex="-1", not a Tab stop) */
+
+  /* ── Visual integration — fully transparent, blends into input surface  */
+  background                 : transparent !important;
+  border                     : none;
+  border-left                : 1px solid var(--border);   /* subtle internal divider, same tone as input border */
+  border-radius              : 0 7px 7px 0;               /* inner radius of the input's 8px right corners */
+
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  display                    : flex;
+  align-items                : center;
+  justify-content            : center;
+  padding                    : 0;
+  flex-shrink                : 0;
+  z-index                    : 2;
+
+  /* ── Interaction ─────────────────────────────────────────────────────── */
+  cursor                     : pointer;
+  color                      : var(--text-muted);
+  touch-action               : manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  /* Only animate the icon colour — never the background */
+  transition                 : color .15s;
+}
+/* Colour-only hover/active — no background flash, field stays unified */
+.field-dropdown-chevron:hover  { color: var(--text); }
+.field-dropdown-chevron:active { color: var(--text); }
+.field-dropdown-chevron svg    { pointer-events: none; transition: transform .2s ease; }
+
+/* Rotate chevron when its sibling dropdown is open.
+   DOM order: [input] [.field-dropdown] [.field-dropdown-chevron]
+   The ~ combinator matches .field-dropdown-chevron that follows .field-dropdown.open
+   at the same level — no JS class changes needed on the button itself.    */
+.field-dropdown.open ~ .field-dropdown-chevron svg { transform: rotate(180deg); }
 
 /* ── MOBILE ≤ 767 px — contrast, tap targets, typography ────── */
 @media (max-width:767px) {
