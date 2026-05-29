@@ -29,8 +29,9 @@ export function getFiltered() {
   const q = state.filterQ.toLowerCase();
   return state.DATA.filter(d => {
     if (state.filterPlatform !== 'all') {
-      const dbPlatform = state.filterPlatform === 'POPA' ? 'Navori' : state.filterPlatform;
-      if (d.platform !== state.filterPlatform && d.platform !== dbPlatform) return false;
+      // filterPlatform is always normalised to 'POPA' or 'KOS' by adapt(),
+      // including the CEO accounting overrides — no Navori alias needed here.
+      if (d.filterPlatform !== state.filterPlatform) return false;
     }
     if (state.filterStatus && d.status !== state.filterStatus) return false;
     if (state.filterVenue  && d.venue  !== state.filterVenue)  return false;
@@ -43,8 +44,8 @@ export function getFiltered() {
 // ── KPIs ──────────────────────────────────────────────────────────────────────
 export function renderKPIs() {
   const total = state.DATA.length;
-  const popa  = state.DATA.filter(d => d.platform === 'POPA' || d.platform === 'Navori').length;
-  const kos   = state.DATA.filter(d => d.platform === 'KOS').length;
+  const popa  = state.DATA.filter(d => d.filterPlatform === 'POPA').length;
+  const kos   = state.DATA.filter(d => d.filterPlatform === 'KOS').length;
   const inst  = state.DATA.filter(d => d.status === 'Installed at Venue').length;
   animCount(document.getElementById('k-total'),    total);
   animCount(document.getElementById('k-navori'),   popa);
@@ -165,8 +166,8 @@ export function renderPendingPipeline() {
   }
 
   // ── Platform Mix ─────────────────────────────────────────────────────────
-  const popaPending = pending.filter(d => d.platform === 'POPA' || d.platform === 'Navori').length;
-  const kosPending  = pending.filter(d => d.platform === 'KOS').length;
+  const popaPending = pending.filter(d => d.filterPlatform === 'POPA').length;
+  const kosPending  = pending.filter(d => d.filterPlatform === 'KOS').length;
 
   // ── Percentages ───────────────────────────────────────────────────────────
   const pctOfTotal = Math.round(pendingTotal / total       * 100);
@@ -219,8 +220,8 @@ export function renderPendingPipeline() {
 // ── DONUT ─────────────────────────────────────────────────────────────────────
 export function renderDonut() {
   const C   = 226.2;
-  const nav = state.DATA.filter(d => d.platform === 'POPA' || d.platform === 'Navori').length;
-  const kos = state.DATA.filter(d => d.platform === 'KOS').length;
+  const nav = state.DATA.filter(d => d.filterPlatform === 'POPA').length;
+  const kos = state.DATA.filter(d => d.filterPlatform === 'KOS').length;
   const tot = state.DATA.length || 1;
   const np  = nav / tot;
   const kp  = kos / tot;

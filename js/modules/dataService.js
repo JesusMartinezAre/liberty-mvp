@@ -28,6 +28,12 @@ let _ready = { venues: false, players: false, evidence: false };
 let _callback = null;
 let _unsubs   = [];
 
+// ── PLATFORM ACCOUNTING OVERRIDES ────────────────────────────────────────────
+// These units run POPA (Navori) hardware but belong to the KOS allocation for
+// accounting and pipeline purposes. Adding/removing a serial here is the ONLY
+// change needed — no other file needs to know about specific serial numbers.
+const KOS_ACCOUNTING_SERIALS = new Set(['ZIPKDHI0017', 'ZIPKDHI0009']);
+
 // ── ADAPTER ───────────────────────────────────────────────────────────────────
 // Maps one (player, venue, evidence) tuple to the legacy flat object shape.
 // Every field the render/filter/modal layer touches is present here.
@@ -36,7 +42,12 @@ function adapt(player, venue, evidence) {
   // installed === true always wins as the terminal state.
   const status = player.installed === true ? 'Installed at Venue' : 'Not Installed';
 
-  const platform = !player.product ? '' : player.product === 'KOS' ? 'KOS' : 'POPA';
+  const platform       = !player.product ? '' : player.product === 'KOS' ? 'KOS' : 'POPA';
+  // filterPlatform is the accounting category used by all filters, KPI counts,
+  // pipeline stats, and exports. For the two CEO-overridden serials it diverges
+  // from platform (hardware reality) so they count as KOS in the books while
+  // still displaying 'POPA' in every UI badge, modal, and label.
+  const filterPlatform = KOS_ACCOUNTING_SERIALS.has(player.unitSerialNumber) ? 'KOS' : platform;
 
   return {
     // ── Identity ───────────────────────────────────────────────────────────
@@ -45,7 +56,8 @@ function adapt(player, venue, evidence) {
 
     // ── Hardware ───────────────────────────────────────────────────────────
     model:         platform,
-    platform:      platform,
+    platform:      platform,      // display truth  — always the real hardware (POPA/KOS)
+    filterPlatform,               // accounting cat — KOS for the two overridden serials
     controller:    platform,
     controllerSN:  player.serialNumber  || '—',
     routerSN:      player.router_sn     || '—',
