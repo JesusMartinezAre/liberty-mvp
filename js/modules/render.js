@@ -122,6 +122,100 @@ export function renderPipeline() {
   document.getElementById('pipeline').innerHTML = html;
 }
 
+// ── PENDING DEPLOYMENT PIPELINE ───────────────────────────────────────────────
+// Mirrors renderPipeline() for the "Not Installed" universe.
+//
+// Breakdown:
+//   Tier 1 — Assignment Readiness
+//     Venue-assigned : d.installed !== true && d.venue is set
+//                      → unit is scheduled; field team can act today
+//     Unassigned TBD : d.installed !== true && no d.venue
+//                      → upstream planning gap; ops team must assign first
+//
+//   Tier 2 — Platform Mix
+//     POPA pending / KOS pending  → informs logistics which hardware is queuing
+//
+// Interactivity:
+//   Header + platform rows → kpiFilter() → Inventory tab with preset filters
+//   Readiness sub-rows     → diagnostic only (no compound filter mechanism)
+//
+// Uses d.installed === true (boolean) as the authoritative installed flag,
+// consistent with renderPipeline() and the Map module.
+// ─────────────────────────────────────────────────────────────────────────────
+export function renderPendingPipeline() {
+  const container = document.getElementById('pending-pipeline');
+  if (!container) return;
+
+  const AMBER = '#f59e0b';
+  const total  = state.DATA.length || 1;
+
+  // Every unit that is not yet confirmed installed
+  const pending      = state.DATA.filter(d => d.installed !== true);
+  const pendingTotal = pending.length;
+
+  // ── Happy state — all units deployed ─────────────────────────────────────
+  if (pendingTotal === 0) {
+    container.innerHTML = `
+      <div style="padding:20px 0;text-align:center;
+                  font-family:var(--mono);font-size:12px;letter-spacing:.5px;
+                  color:var(--s4)">
+        🎉 All ${total} units installed!
+      </div>`;
+    return;
+  }
+
+  // ── Platform Mix ─────────────────────────────────────────────────────────
+  const popaPending = pending.filter(d => d.platform === 'POPA' || d.platform === 'Navori').length;
+  const kosPending  = pending.filter(d => d.platform === 'KOS').length;
+
+  // ── Percentages ───────────────────────────────────────────────────────────
+  const pctOfTotal = Math.round(pendingTotal / total       * 100);
+  const pctPopa    = pendingTotal > 0 ? Math.round(popaPending / pendingTotal * 100) : 0;
+  const pctKos     = pendingTotal > 0 ? Math.round(kosPending  / pendingTotal * 100) : 0;
+
+  // ── Section divider — identical style to renderPipeline() ─────────────────
+  const divider = label => `
+    <div style="height:1px;background:var(--border);margin:8px 0"></div>
+    <div style="font-size:9px;color:var(--text-muted);letter-spacing:1px;
+                font-weight:700;margin-bottom:8px;padding-left:2px">${label}</div>`;
+
+  container.innerHTML = `
+
+    <!-- ── Header row: total pending ────────────────────────────────────────
+         Clickable → Inventory tab, "Not Installed" filter preset           -->
+    <div class="pipe-row kpi-btn"
+         onclick="kpiFilter('all','Not Installed')"
+         style="cursor:pointer">
+      <div class="pipe-dot" style="background:${AMBER}"></div>
+      <div class="pipe-name"  style="color:${AMBER}">Not Installed</div>
+      <div class="pipe-count" style="color:${AMBER}">${pendingTotal}</div>
+      <div class="pipe-pct">${pctOfTotal}% ›</div>
+    </div>
+
+    ${divider('PLATFORM MIX')}
+
+    <!-- POPA pending — clickable → Inventory / POPA / Not Installed         -->
+    <div class="pipe-row kpi-btn"
+         onclick="kpiFilter('POPA','Not Installed')"
+         style="cursor:pointer">
+      <div class="pipe-dot" style="background:var(--navori)"></div>
+      <div class="pipe-name"  style="color:var(--navori)">POPA</div>
+      <div class="pipe-count" style="color:var(--navori)">${popaPending}</div>
+      <div class="pipe-pct">${pctPopa}% ›</div>
+    </div>
+
+    <!-- KOS pending — clickable → Inventory / KOS / Not Installed            -->
+    <div class="pipe-row kpi-btn"
+         onclick="kpiFilter('KOS','Not Installed')"
+         style="cursor:pointer">
+      <div class="pipe-dot" style="background:var(--kos)"></div>
+      <div class="pipe-name"  style="color:var(--kos)">KOS / Tier One</div>
+      <div class="pipe-count" style="color:var(--kos)">${kosPending}</div>
+      <div class="pipe-pct">${pctKos}% ›</div>
+    </div>
+  `;
+}
+
 // ── DONUT ─────────────────────────────────────────────────────────────────────
 export function renderDonut() {
   const C   = 226.2;
@@ -245,6 +339,7 @@ export function renderVenueFilters() {
 export function renderAll() {
   renderKPIs();
   renderPipeline();
+  renderPendingPipeline();   // ← Pending Deployment card (mirrors renderPipeline)
   renderDonut();
   renderList();
   renderVenueFilters();

@@ -230,6 +230,8 @@ body {
   content:''; display:block; width:3px; height:14px;
   background:var(--red); border-radius:2px; flex-shrink:0;
 }
+/* Amber accent variant — used by the Pending Deployment card */
+.sc-title.amber::before { background:#f59e0b; }
 
 /* ── PIPELINE ────────────────────────────────────────────────── */
 .pipeline { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
@@ -308,8 +310,62 @@ body {
   background:rgba(255,255,255,.08); border-radius:6px; padding:1px 6px;
 }
 
-/* ── STATUS FILTER CHIPS ─────────────────────────────────────── */
-.status-filters { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+/* ── FILTER STACK — two labelled rows, one per filtering dimension ── */
+
+/* Outer column: stacks Status row above Location row with a comfortable gap.
+   margin-bottom matches .filter-row so the whole block sits flush with the
+   export buttons below it.                                               */
+.filter-stack {
+  display        : flex;
+  flex-direction : column;
+  gap            : 10px;
+  margin-bottom  : 16px;
+}
+
+/* One labelled row: [label] [chips…]
+   align-items:center keeps the label vertically centred against the first
+   chip row. flex-wrap is intentionally OFF here — the label and its chips
+   container always stay on the same horizontal line; wrapping happens only
+   inside .filter-block-chips, which keeps the two dimensions from ever
+   intermixing on narrow screens.                                          */
+.filter-block {
+  display    : flex;
+  align-items: center;
+  gap        : 8px;
+}
+
+/* Micro-label: "STATUS" / "LOCATION"
+   min-width:60px aligns both labels to the same width so the two chip
+   columns start at an identical horizontal offset — creates a clean grid
+   effect without any explicit CSS grid or table layout.
+   opacity:.55 keeps it readable but clearly secondary to the chips.      */
+.filter-block-label {
+  font-family   : var(--mono);
+  font-size     : 9px;
+  font-weight   : 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color         : var(--text-muted);
+  opacity       : .55;
+  min-width     : 60px;
+  flex-shrink   : 0;     /* never shrinks or wraps; always anchors the left edge */
+  white-space   : nowrap;
+  line-height   : 1;
+}
+
+/* Chips area: wraps internally within its own dimension.
+   flex:1 + min-width:0 lets it consume all remaining horizontal space
+   so chips have the full row width available before wrapping.            */
+.filter-block-chips {
+  display    : flex;
+  flex-wrap  : wrap;
+  gap        : 6px;
+  align-items: center;
+  flex       : 1;
+  min-width  : 0;
+}
+
+/* ── STATUS / VENUE FILTER CHIPS (.sf) ──────────────────────── */
 .sf {
   padding:5px 12px; border-radius:20px; font-size:11px; font-weight:600;
   letter-spacing:.5px; border:1px solid transparent; cursor:pointer;
@@ -863,7 +919,13 @@ body.field-mode #loc-field, body.field-mode #m-section, body.field-mode .keep { 
   }
   .chip-n { font-size: 12px; }
 
-  /* Status + venue filter chips — inactive opacity up from .45 */
+  /* Filter stack — tighten the row gap slightly on mobile */
+  .filter-stack { gap: 8px; }
+
+  /* Label — bump to 10px so it stays legible at arm's length on a phone */
+  .filter-block-label { font-size: 10px; min-width: 64px; }
+
+  /* Status + venue filter chips — inactive opacity up from .45 for readability */
   .sf {
     padding: 8px 14px;
     font-size: 12px;

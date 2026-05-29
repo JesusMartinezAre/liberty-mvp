@@ -193,6 +193,14 @@
     </div>
   </div>
 
+  <!-- PENDING DEPLOYMENT PIPELINE -->
+  <div class="sc">
+    <div class="sc-title amber">Pending Deployment</div>
+    <div class="pipeline" id="pending-pipeline">
+      <div class="loading"><div class="spinner"></div>Calculating…</div>
+    </div>
+  </div>
+
   <!-- PLATFORM DONUT -->
   <div class="sc">
     <div class="sc-title">Platform Distribution</div>
@@ -258,12 +266,33 @@
     <button class="chip f-kos" id="cf-kos" onclick="setPlatform('KOS',this)">KOS <span class="chip-n" id="cn-kos">—</span></button>
   </div>
 
-  <div class="status-filters" id="status-filters">
-    <button class="sf active" data-s="" onclick="setStatusFilter('',this);clearVenueFilter()" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:var(--text-sub)">All</button>
-    <button class="sf" data-s="Installed at Venue" onclick="setStatusFilter('Installed at Venue',this)" style="background:rgba(34,197,94,.1);color:var(--s4);border-color:rgba(34,197,94,.3)">✓ Installed</button>
-    <button class="sf" data-s="Not Installed" onclick="setStatusFilter('Not Installed',this)"
-      style="background:rgba(85,85,85,.12);color:var(--s0);border-color:rgba(85,85,85,.3)">✕ Not Installed</button>
-    <span id="venue-filter-btns"></span>
+  <!-- ── Filter stack: two labelled rows, one per filtering dimension ── -->
+  <div class="filter-stack" id="status-filters">
+
+    <!-- Row 1 — STATE: what is the unit's deployment status? -->
+    <div class="filter-block">
+      <span class="filter-block-label">Status</span>
+      <div class="filter-block-chips">
+        <button class="sf active" data-s=""
+                onclick="setStatusFilter('',this);clearVenueFilter()"
+                style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:var(--text-sub)">All</button>
+        <button class="sf" data-s="Installed at Venue"
+                onclick="setStatusFilter('Installed at Venue',this)"
+                style="background:rgba(34,197,94,.1);color:var(--s4);border-color:rgba(34,197,94,.3)">✓ Installed</button>
+        <button class="sf" data-s="Not Installed"
+                onclick="setStatusFilter('Not Installed',this)"
+                style="background:rgba(85,85,85,.12);color:var(--s0);border-color:rgba(85,85,85,.3)">✕ Not Installed</button>
+      </div>
+    </div>
+
+    <!-- Row 2 — LOCATION: which venue? (chips injected by renderVenueFilters()) -->
+    <div class="filter-block">
+      <span class="filter-block-label">Location</span>
+      <!-- id="venue-filter-btns" is the sole DOM anchor used by renderVenueFilters() in render.js.
+           Changing this element type from <span> to <div> is safe — render.js only sets .innerHTML. -->
+      <div class="filter-block-chips" id="venue-filter-btns"></div>
+    </div>
+
   </div>
 
   <div style="display:flex;gap:6px;margin-bottom:12px">
