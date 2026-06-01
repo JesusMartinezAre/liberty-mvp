@@ -1,8 +1,6 @@
 'use strict';
 
 // ── Firebase Admin ─────────────────────────────────────────────────────────
-// Shared module handles init + the bulletproof private-key sanitisation.
-// Both scim.js and me.js use the same singleton — no double-init risk.
 const { getAdmin, getDb } = require('./lib/firebaseAdmin');
 const admin               = getAdmin();
 const db                  = getDb();
@@ -13,19 +11,11 @@ const SCIM_PREFIX       = '/scim/v2';
 const SCIM_CONTENT_TYPE = 'application/scim+json';
 
 // ── Auth guard ─────────────────────────────────────────────────────────────
-// Okta sends:  Authorization: Bearer <token>
-// Token must match the SCIM_AUTH_TOKEN env var set in Netlify dashboard.
+// Returns 'entra' | 'okta' | null so callers can tag new users by source.
 function authenticate(headers) {
-  // 1. Buscamos la cabecera sin importar si es 'authorization', 'Authorization' o 'AUTHORIZATION'
   const authHeaderKey = Object.keys(headers).find(k => k.toLowerCase() === 'authorization');
   const raw = headers[authHeaderKey] || '';
 
-  console.log("--- DEBUG DE CABECERAS ---");
-  console.log("Cabecera encontrada:", authHeaderKey || "NINGUNA");
-  console.log("Valor crudo recibido:", raw);
-
-  // 2. Extraemos el token:
-  // Si empieza con "Bearer ", le quitamos eso. Si no, tomamos el valor tal cual.
   let token = null;
   if (raw.toLowerCase().startsWith('bearer ')) {
     token = raw.slice(7).trim();
@@ -33,21 +23,15 @@ function authenticate(headers) {
     token = raw.trim();
   }
 
-  // 3. Accepted tokens — any configured token grants access.
-  // Add SCIM_AUTH_TOKEN_LIBERTY (or more) in Netlify env vars to allow
-  // a second system to push users without sharing the primary token.
-  const VALID_TOKENS = [
-    process.env.SCIM_AUTH_TOKEN,
-    process.env.SCIM_AUTH_TOKEN_LIBERTY,
-  ].filter(Boolean);
+  if (!token) return null;
 
-  console.log("Token extraído final:", `[${token}]`);
-  console.log("Tokens válidos configurados:", VALID_TOKENS.length);
-
-  const matches = token && VALID_TOKENS.some(t => t === token);
-  console.log("¿Coinciden?:", !!matches);
-
-  return !!matches;
+  if (process.env.SCIM_AUTH_TOKEN_LIBERTY && token === process.env.SCIM_AUTH_TOKEN_LIBERTY) {
+    return 'entra';
+  }
+  if (process.env.SCIM_AUTH_TOKEN && token === process.env.SCIM_AUTH_TOKEN) {
+    return 'okta';
+  }
+  return null;
 }
 
 // ── Response helpers ───────────────────────────────────────────────────────
@@ -69,15 +53,17 @@ function scimError(status, detail, scimType) {
   return respond(status, body);
 }
 
-function notImplemented(detail) {
-  return scimError(501, detail);
+// ── Boolean coercion ───────────────────────────────────────────────────────
+// Entra sends active as the string "False" / "True" in some PATCH payloads.
+// Boolean("False") === true in JS (non-empty string), so we need explicit handling.
+function coerceBool(v) {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string')  return v.toLowerCase() !== 'false' && v !== '0';
+  return Boolean(v);
 }
 
 // ── Path parser ────────────────────────────────────────────────────────────
 // Strips the /scim/v2 prefix and returns { resource, resourceId }.
-// Examples:
-//   /scim/v2/Users          → { resource: 'Users', resourceId: null }
-//   /scim/v2/Users/abc123   → { resource: 'Users', resourceId: 'abc123' }
 function parsePath(path) {
   const relative = path.startsWith(SCIM_PREFIX)
     ? path.slice(SCIM_PREFIX.length)
@@ -90,14 +76,13 @@ function parsePath(path) {
 }
 
 // ── SCIM ↔ Firestore mappers ───────────────────────────────────────────────
-// Converts a Firestore user document into a SCIM 2.0 User object.
 function toScimUser(docId, data) {
   const given  = data.givenName  || '';
   const family = data.familyName || '';
   return {
     schemas:     ['urn:ietf:params:scim:schemas:core:2.0:User'],
     id:          docId,
-    externalId:  data.oktaExternalId || null,
+    externalId:  data.entraExternalId || data.oktaExternalId || null,
     userName:    data.userName || data.email,
     name: {
       formatted:  data.displayName || `${given} ${family}`.trim(),
@@ -115,9 +100,8 @@ function toScimUser(docId, data) {
 }
 
 // ── Filter parser ──────────────────────────────────────────────────────────
-// Handles the SCIM filter subset Okta actually sends:
+// Handles the SCIM filter subset both Okta and Entra actually send:
 //   userName eq "email@domain.com"
-// Returns { field: 'username', value: '...' } (field is lowercased), or null.
 function parseFilter(filterStr) {
   if (!filterStr) return null;
   const match = filterStr.match(/^(\w+)\s+eq\s+"([^"]+)"$/i);
@@ -131,7 +115,6 @@ async function handleGetUsers(event) {
   const parsed = parseFilter(filter);
 
   if (parsed) {
-    // Okta uses filter=userName eq "..." to check existence before provisioning.
     if (parsed.field !== 'username') {
       return scimError(400, `Unsupported filter field: "${parsed.field}".`, 'invalidFilter');
     }
@@ -161,8 +144,8 @@ async function handleGetUsers(event) {
     });
   }
 
-  // No filter — return empty list. Full user enumeration is not required
-  // for Okta JIT provisioning; Okta drives sync via POST, PATCH, and DELETE.
+  // No filter — return empty list. Both Okta and Entra drive sync via
+  // POST/PUT/PATCH/DELETE; full enumeration is not required.
   return respond(200, {
     schemas:      ['urn:ietf:params:scim:api:messages:2.0:ListResponse'],
     totalResults: 0,
@@ -182,7 +165,7 @@ async function handleGetUserById(resourceId) {
 }
 
 // ── POST /Users ────────────────────────────────────────────────────────────
-async function handlePostUsers(event) {
+async function handlePostUsers(event, source) {
   let payload;
   try {
     payload = JSON.parse(event.body || '{}');
@@ -190,46 +173,46 @@ async function handlePostUsers(event) {
     return scimError(400, 'Request body is not valid JSON.');
   }
 
-  const email           = payload.userName || payload.emails?.[0]?.value || null;
-  const givenName       = payload.name?.givenName  || '';
-  const familyName      = payload.name?.familyName || '';
-  const displayName     = payload.name?.formatted  || `${givenName} ${familyName}`.trim();
-  const oktaExternalId  = payload.externalId || payload.id || null;
-  const active          = payload.active !== false;
+  const email       = payload.userName || payload.emails?.[0]?.value || null;
+  const givenName   = payload.name?.givenName  || '';
+  const familyName  = payload.name?.familyName || '';
+  const displayName = payload.name?.formatted  || `${givenName} ${familyName}`.trim();
+  const externalId  = payload.externalId || null;
+  const active      = coerceBool(payload.active !== undefined ? payload.active : true);
 
   if (!email) {
     return scimError(400, 'userName (email address) is required.', 'invalidValue');
   }
 
-  // Idempotency: return the existing user rather than creating a duplicate.
+  // 409 Conflict instead of 200 — Entra's reconciliation logic expects this.
   const existing = await db.collection(USERS_COLLECTION)
     .where('email', '==', email)
     .limit(1)
     .get();
 
   if (!existing.empty) {
-    const doc = existing.docs[0];
-    return respond(200, toScimUser(doc.id, doc.data()));
+    return scimError(409, `User with userName "${email}" already exists.`, 'uniqueness');
   }
 
-  // Pre-generate the document reference so we can embed the ID inside the document.
   const newRef = db.collection(USERS_COLLECTION).doc();
   const now    = admin.firestore.FieldValue.serverTimestamp();
+
   await newRef.set({
-    id:                newRef.id,
-    scimId:            newRef.id,
-    oktaExternalId,
-    userName:          email,
+    id:               newRef.id,
+    scimId:           newRef.id,
+    entraExternalId:  source === 'entra' ? externalId : null,
+    oktaExternalId:   source === 'okta'  ? externalId : null,
+    userName:         email,
     email,
     givenName,
     familyName,
     displayName,
     active,
-    role:              'viewer',
-    groups:            [],
-    source:            'okta-scim',
-    createdAt:         now,
-    updatedAt:         now,
+    role:             'viewer',
+    groups:           [],
+    source:           source === 'entra' ? 'entra-scim' : 'okta-scim',
+    createdAt:        now,
+    updatedAt:        now,
     lastProvisionedAt: now,
   });
 
@@ -238,10 +221,9 @@ async function handlePostUsers(event) {
 }
 
 // ── PATCH /Users/{id} ─────────────────────────────────────────────────────
-// Okta uses PATCH to activate and deactivate users.
-// It sends a PatchOp payload in two possible forms:
-//   Form A: { op: 'replace', path: 'active', value: false }
-//   Form B: { op: 'replace', value: { active: false } }
+// Handles activate/deactivate. Two forms Entra and Okta send:
+//   Form A: { op: 'replace', path: 'active', value: false | "False" }
+//   Form B: { op: 'replace', value: { active: false | "False" } }
 async function handlePatchUser(resourceId, event) {
   const docRef = db.collection(USERS_COLLECTION).doc(resourceId);
   const snap   = await docRef.get();
@@ -265,11 +247,9 @@ async function handlePatchUser(resourceId, event) {
 
     if (opType === 'replace') {
       if (op.path === 'active' && op.value !== undefined) {
-        // Form A
-        updates.active = Boolean(op.value);
+        updates.active = coerceBool(op.value);
       } else if (op.value && typeof op.value === 'object' && op.value.active !== undefined) {
-        // Form B
-        updates.active = Boolean(op.value.active);
+        updates.active = coerceBool(op.value.active);
       }
     }
   }
@@ -287,9 +267,9 @@ async function handlePatchUser(resourceId, event) {
 }
 
 // ── PUT /Users/{id} ───────────────────────────────────────────────────────
-// Full replacement — Okta sends the complete user object.
-// Immutable fields (id, scimId, createdAt, source) are preserved.
-async function handlePutUser(resourceId, event) {
+// Full replacement. Only overwrites the external ID field that belongs to
+// the calling IdP — Okta's field is never clobbered by an Entra request.
+async function handlePutUser(resourceId, event, source) {
   const docRef = db.collection(USERS_COLLECTION).doc(resourceId);
   const snap   = await docRef.get();
 
@@ -304,16 +284,16 @@ async function handlePutUser(resourceId, event) {
     return scimError(400, 'Request body is not valid JSON.');
   }
 
-  const email          = payload.userName || payload.emails?.[0]?.value || snap.data().email;
-  const givenName      = payload.name?.givenName  || '';
-  const familyName     = payload.name?.familyName || '';
-  const displayName    = payload.name?.formatted  || `${givenName} ${familyName}`.trim();
-  const oktaExternalId = payload.externalId || payload.id || snap.data().oktaExternalId || null;
-  const active         = payload.active !== false;
-  const now            = admin.firestore.FieldValue.serverTimestamp();
+  const existing    = snap.data();
+  const email       = payload.userName || payload.emails?.[0]?.value || existing.email;
+  const givenName   = payload.name?.givenName  || '';
+  const familyName  = payload.name?.familyName || '';
+  const displayName = payload.name?.formatted  || `${givenName} ${familyName}`.trim();
+  const externalId  = payload.externalId || null;
+  const active      = coerceBool(payload.active !== undefined ? payload.active : true);
+  const now         = admin.firestore.FieldValue.serverTimestamp();
 
-  await docRef.update({
-    oktaExternalId,
+  const updates = {
     userName:          email,
     email,
     givenName,
@@ -322,26 +302,53 @@ async function handlePutUser(resourceId, event) {
     active,
     updatedAt:         now,
     lastProvisionedAt: now,
-  });
+  };
 
+  if (source === 'entra') updates.entraExternalId = externalId;
+  if (source === 'okta')  updates.oktaExternalId  = externalId;
+
+  await docRef.update(updates);
   const updated = await docRef.get();
   return respond(200, toScimUser(updated.id, updated.data()));
 }
 
+// ── DELETE /Users/{id} ────────────────────────────────────────────────────
+// Soft-delete: sets active=false rather than removing the Firestore document.
+// Hard deletion would break audit trails and linked evidence_players records.
+async function handleDeleteUser(resourceId) {
+  const docRef = db.collection(USERS_COLLECTION).doc(resourceId);
+  const snap   = await docRef.get();
+
+  if (!snap.exists) {
+    return scimError(404, `User "${resourceId}" not found.`);
+  }
+
+  await docRef.update({
+    active:            false,
+    updatedAt:         admin.firestore.FieldValue.serverTimestamp(),
+    lastProvisionedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // SCIM spec §3.6: successful DELETE returns 204 No Content with an empty body.
+  return {
+    statusCode: 204,
+    headers:    { 'Content-Type': SCIM_CONTENT_TYPE },
+    body:       '',
+  };
+}
+
 // ── /Users router ──────────────────────────────────────────────────────────
-async function handleUsers(method, resourceId, event) {
+async function handleUsers(method, resourceId, event, source) {
   if (method === 'GET'    && !resourceId) return handleGetUsers(event);
   if (method === 'GET'    &&  resourceId) return handleGetUserById(resourceId);
-  if (method === 'POST')                  return handlePostUsers(event);
-  if (method === 'PUT'    &&  resourceId) return handlePutUser(resourceId, event);
+  if (method === 'POST')                  return handlePostUsers(event, source);
+  if (method === 'PUT'    &&  resourceId) return handlePutUser(resourceId, event, source);
   if (method === 'PATCH'  &&  resourceId) return handlePatchUser(resourceId, event);
-  if (method === 'DELETE' &&  resourceId) return notImplemented('DELETE /Users/{id} not yet implemented.');
+  if (method === 'DELETE' &&  resourceId) return handleDeleteUser(resourceId);
   return scimError(405, 'Method not allowed on /Users.');
 }
 
 // ── /ServiceProviderConfig ─────────────────────────────────────────────────
-// Real response — Okta fetches this on first connection to discover our
-// capabilities. Listing the features we actually plan to support.
 function handleServiceProviderConfig() {
   return respond(200, {
     schemas:          ['urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig'],
@@ -367,18 +374,18 @@ function handleServiceProviderConfig() {
 // ── Main handler ───────────────────────────────────────────────────────────
 exports.handler = async (event) => {
   try {
-    // 1. Auth — every SCIM request must carry a valid Bearer token.
-    if (!authenticate(event.headers)) {
+    // authenticate() returns 'entra' | 'okta' | null — null means unauthorized.
+    const source = authenticate(event.headers);
+    if (!source) {
       return scimError(401, 'Invalid or missing Bearer token.');
     }
 
     const method                   = event.httpMethod.toUpperCase();
     const { resource, resourceId } = parsePath(event.path);
 
-    // 2. Route by SCIM resource type.
     switch (resource) {
       case 'Users':
-        return await handleUsers(method, resourceId, event);
+        return await handleUsers(method, resourceId, event, source);
 
       case 'ServiceProviderConfig':
         return method === 'GET'
