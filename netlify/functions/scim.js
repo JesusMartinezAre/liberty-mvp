@@ -63,11 +63,20 @@ function coerceBool(v) {
 }
 
 // ── Path parser ────────────────────────────────────────────────────────────
-// Strips the /scim/v2 prefix and returns { resource, resourceId }.
+// Normalises the three path formats Netlify may pass as event.path:
+//   /scim/v2/Users          — original path (non-splat rewrite)
+//   /.netlify/functions/scim/Users — rewritten path (splat rewrite)
+//   /Users                  — bare sub-path (direct function invocation)
+const FUNCTION_BASE = '/.netlify/functions/scim';
 function parsePath(path) {
-  const relative = path.startsWith(SCIM_PREFIX)
-    ? path.slice(SCIM_PREFIX.length)
-    : path;
+  let relative;
+  if (path.startsWith(SCIM_PREFIX)) {
+    relative = path.slice(SCIM_PREFIX.length);
+  } else if (path.startsWith(FUNCTION_BASE)) {
+    relative = path.slice(FUNCTION_BASE.length);
+  } else {
+    relative = path;
+  }
   const parts = relative.replace(/^\//, '').split('/');
   return {
     resource:   parts[0] || '',

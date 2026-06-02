@@ -6,7 +6,8 @@
   NODE_VERSION = "20"
 
 [functions]
-  node_bundler = "esbuild"
+  directory    = "netlify/functions"
+  node_bundler = "zisi"
 
 # Redirect bare /auth to the login page
 [[redirects]]
