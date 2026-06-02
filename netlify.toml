@@ -56,10 +56,12 @@
   force  = true
 
 # SCIM 2.0 — route all /scim/v2/* traffic to the serverless function.
+# :splat passes the captured wildcard as the function sub-path so the handler
+# can distinguish /Users, /Users/{id}, /Groups, /ServiceProviderConfig, etc.
 # Must sit above the SPA catch-all so Netlify matches it first.
 [[redirects]]
   from   = "/scim/v2/*"
-  to     = "/.netlify/functions/scim"
+  to     = "/.netlify/functions/scim/:splat"
   status = 200
   force  = true
 
