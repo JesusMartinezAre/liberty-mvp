@@ -12,6 +12,16 @@ const { signSession } = require('./lib/session');
 const { appJson }     = require('./lib/http');
 const bcrypt          = require('bcryptjs');
 
+// Target cost factor for all new and re-hashed passwords.
+// bcrypt work doubles for every increment — 12 rounds ≈ 300ms on a Lambda CPU,
+// the recognised industry floor as of 2025.
+const BCRYPT_ROUNDS = 12;
+
+// Pre-compiled sentinel check — valid bcrypt hashes always begin with one of
+// these prefixes. Used to reject plaintext or legacy-format stored values
+// before bcrypt.compare() silently returns false and gives no diagnostic.
+const BCRYPT_PREFIX_RE = /^\$2[aby]\$/;
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: { Allow: 'POST' }, body: 'Method not allowed.' };
@@ -56,8 +66,31 @@ exports.handler = async (event) => {
     // No hash stored → account not set up for password auth.
     if (!user.passwordHash) return INVALID;
 
+    // Format guard: ensure the stored value is actually a bcrypt hash before
+    // calling bcrypt.compare(). Without this, a plaintext or unknown-format
+    // value would cause compare() to silently return false — masking the real
+    // problem and making misconfigured accounts indistinguishable from wrong
+    // passwords. Rejection here forces an admin password-reset instead.
+    if (!BCRYPT_PREFIX_RE.test(user.passwordHash)) {
+      console.warn('[password-login] Non-bcrypt hash detected for doc:', doc.id);
+      return INVALID;
+    }
+
     const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) return INVALID;
+
+    // Lazy re-hash: if the stored hash was generated with a lower cost factor
+    // than BCRYPT_ROUNDS, silently upgrade it now that we have the plaintext
+    // password in hand. getRounds() is a synchronous string parse — no crypto.
+    const storedRounds = bcrypt.getRounds(user.passwordHash);
+    if (storedRounds < BCRYPT_ROUNDS) {
+      const upgradedHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      await db.collection('users').doc(doc.id).update({ passwordHash: upgradedHash });
+      console.log(
+        '[password-login] Hash upgraded for doc:', doc.id,
+        '| rounds:', storedRounds, '→', BCRYPT_ROUNDS,
+      );
+    }
 
     const token = await signSession({
       sub:         doc.id,

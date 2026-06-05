@@ -7,7 +7,24 @@
 
 [functions]
   directory    = "netlify/functions"
-  node_bundler = "zisi"
+  node_bundler = "esbuild"
+
+# ── Security headers ──────────────────────────────────────────────────────────
+
+# Global: prevent every page from being embedded in a frame (clickjacking).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+
+# Auth pages: prevent any browser or proxy caching of login/token-exchange HTML.
+[[headers]]
+  for = "/auth/*"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+    Pragma        = "no-cache"
+
+# ── Redirects ─────────────────────────────────────────────────────────────────
 
 # Redirect bare /auth to the login page
 [[redirects]]
