@@ -21,9 +21,12 @@ function buildProviders() {
     };
   }
 
-  // ── Local sessions (issued after SAML verification) ──
-  if (process.env.SESSION_JWT_SECRET && process.env.SESSION_JWT_ISSUER) {
-    map[process.env.SESSION_JWT_ISSUER] = {
+  // ── Local sessions (issued after SAML / password-login verification) ──
+  // Mirror the fallback in session.js: if SESSION_JWT_ISSUER is not set,
+  // tokens are signed with iss 'app://liberty' — register that same value here.
+  if (process.env.SESSION_JWT_SECRET) {
+    const localIssuer = process.env.SESSION_JWT_ISSUER || 'app://liberty';
+    map[localIssuer] = {
       name:     'local',
       secret:   process.env.SESSION_JWT_SECRET,
       audience: 'liberty-app',
