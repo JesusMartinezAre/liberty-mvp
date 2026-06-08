@@ -9,7 +9,8 @@
 //                      Falls back to the Entra-standard URL computed from tenantId.
 //   idpEntityId        "Entra Identifier" / IdP Issuer URI from the IdP.
 //                      Falls back to "https://sts.windows.net/{tenantId}/" if tenantId is set.
-//   idpCert            IdP X.509 certificate, PEM body only (no -----BEGIN/END lines)
+//   idpCert            IdP X.509 certificate — any format accepted (raw base64, PEM with
+//                      headers, or base64url). formatCert() normalises before use.
 //   signatureAlgorithm "sha256" — must match the Azure portal signing algorithm setting
 //   entityId           SP Entity ID URL  (fallback: ENTRA_SP_ENTITY_ID env var)
 //   acsUrl             ACS callback URL  (fallback: ENTRA_ACS_URL env var)
@@ -86,17 +87,78 @@ function buildCacheProvider() {
   };
 }
 
+// ── Certificate normaliser ────────────────────────────────────────────────
+// Accepts idpCert in any of the three formats Azure / Entra portal provides:
+//   - Raw base64 (continuous string, no headers)      ← most common paste
+//   - PEM with -----BEGIN/END CERTIFICATE----- headers
+//   - base64url (- and _ instead of + and /)
+//
+// Why this is necessary:
+//   The Azure portal clipboard and Firestore web console both inject invisible
+//   Unicode characters that standard \s doesn't strip:
+//        non-breaking space  (portal cert-display blocks)
+//     ​  zero-width space    (Azure "copy" button)
+//        line separator      (Windows/macOS clipboard newline variant)
+//   node-saml v5's keyInfoToPem runs /^[A-Za-z0-9+/=]*$/ on the cleaned body.
+//   Any of the above characters survive its \r\n strip and fail that regex,
+//   producing the "idpCert is not in PEM format or in base64 format" error.
+//
+// Output is always a well-formed PEM string that node-saml reliably accepts.
+function formatCert(raw) {
+  if (!raw || typeof raw !== 'string') {
+    throw new Error('[saml] idpCert is missing or not a string');
+  }
+
+  // 1. Strip PEM headers/footers in case the full PEM was pasted.
+  let body = raw
+    .replace(/-----BEGIN CERTIFICATE-----/g, '')
+    .replace(/-----END CERTIFICATE-----/g, '');
+
+  // 2. Strip every character that is NOT printable ASCII.
+  //    This catches  , ​,   and all other invisible Unicode
+  //    that the portal clipboard injects. Printable ASCII is 0x20–0x7E.
+  //    eslint-disable-next-line no-control-regex
+  body = body.replace(/[^\x20-\x7E]/g, '');
+
+  // 3. Strip the remaining printable whitespace (space, tab).
+  body = body.replace(/\s/g, '');
+
+  if (!body) {
+    throw new Error('[saml] idpCert is empty after stripping headers');
+  }
+
+  // 4. Normalise base64url → standard base64.
+  //    Some Entra downloads use - and _ (URL-safe alphabet) instead of + and /.
+  body = body.replace(/-/g, '+').replace(/_/g, '/');
+
+  // 5. Validate: must be pure standard base64 now.
+  if (!/^[A-Za-z0-9+/=]*$/.test(body)) {
+    throw new Error(
+      '[saml] idpCert still contains invalid characters after normalisation. ' +
+      'Check the Firestore value — re-paste directly from the Azure portal cert download.',
+    );
+  }
+
+  // 6. Re-chunk into 64-character lines and wrap in PEM headers.
+  //    node-saml v5 always accepts this canonical PEM form.
+  const lines = body.match(/.{1,64}/g) || [];
+  return `-----BEGIN CERTIFICATE-----\n${lines.join('\n')}\n-----END CERTIFICATE-----`;
+}
+
 // ── Build SAML instance from an sso_configs document ──────────────────────
 function buildSamlInstance(config) {
   const tenantId = config.tenantId;
   const entityId = config.entityId || process.env.ENTRA_SP_ENTITY_ID;
   const acsUrl   = config.acsUrl   || process.env.ENTRA_ACS_URL;
-  const idpCert  = config.idpCert;
   const sigAlg   = config.signatureAlgorithm || 'sha256';
 
-  if (!acsUrl)   throw new Error('[saml] acsUrl not set in sso_configs or ENTRA_ACS_URL env var');
-  if (!entityId) throw new Error('[saml] entityId not set in sso_configs or ENTRA_SP_ENTITY_ID env var');
-  if (!idpCert)  throw new Error('[saml] sso_configs missing required field: idpCert');
+  if (!acsUrl)        throw new Error('[saml] acsUrl not set in sso_configs or ENTRA_ACS_URL env var');
+  if (!entityId)      throw new Error('[saml] entityId not set in sso_configs or ENTRA_SP_ENTITY_ID env var');
+  if (!config.idpCert) throw new Error('[saml] sso_configs missing required field: idpCert');
+
+  // Normalise the cert from Firestore — strips invisible Unicode, PEM headers,
+  // base64url characters, and re-wraps into canonical PEM format.
+  const idpCert = formatCert(config.idpCert);
 
   // idpSsoUrl — the "Login URL" the IdP gives you. Stored explicitly so the
   // schema is provider-agnostic. Falls back to the Entra-standard URL computed
