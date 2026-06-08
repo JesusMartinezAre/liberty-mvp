@@ -271,18 +271,28 @@
         </div>
       </div>
 
-      <div class="err-msg" id="main-err" role="alert"></div>
+      <form id="form-sso" class="field-group" novalidate>
+        <div class="field">
+          <label for="sso-email">Work email</label>
+          <input type="email" id="sso-email"
+                 placeholder="you@yourcompany.com"
+                 autocomplete="email"
+                 inputmode="email">
+        </div>
 
-      <button id="btn-microsoft" class="btn-sso">
-        <span class="spinner"></span>
-        <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect x="1"  y="1"  width="9" height="9" fill="#F25022"/>
-          <rect x="11" y="1"  width="9" height="9" fill="#7FBA00"/>
-          <rect x="1"  y="11" width="9" height="9" fill="#00A4EF"/>
-          <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
-        </svg>
-        Continue with Microsoft
-      </button>
+        <div class="err-msg" id="main-err" role="alert"></div>
+
+        <button type="submit" id="btn-microsoft" class="btn-sso">
+          <span class="spinner"></span>
+          <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="1"  y="1"  width="9" height="9" fill="#F25022"/>
+            <rect x="11" y="1"  width="9" height="9" fill="#7FBA00"/>
+            <rect x="1"  y="11" width="9" height="9" fill="#00A4EF"/>
+            <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+          </svg>
+          Continue with Microsoft
+        </button>
+      </form>
 
       <div class="divider">or</div>
 
@@ -336,6 +346,7 @@
   // ── Elements ────────────────────────────────────────────────────────────────
   const panelMain     = document.getElementById('panel-main');
   const panelPassword = document.getElementById('panel-password');
+  const formSso       = document.getElementById('form-sso');
   const btnMicrosoft  = document.getElementById('btn-microsoft');
   const btnShowPw     = document.getElementById('btn-show-password');
   const btnBack       = document.getElementById('btn-back');
@@ -347,25 +358,39 @@
   const urlError = new URLSearchParams(window.location.search).get('error');
   if (urlError) {
     const errorMessages = {
-      saml_failed:         'Sign-in failed. Please try again.',
-      saml_invalid:        'SAML response could not be verified.',
-      saml_no_email:       'Your identity provider did not share an email address.',
-      account_inactive:    'Your account has been deactivated. Contact your administrator.',
-      saml_not_configured: 'SAML SSO is not yet configured on this server.',
-      no_token:            'Sign-in session was lost. Please try again.',
-      storage_denied:      'Browser storage is blocked. Enable cookies and try again.',
+      saml_failed:           'Sign-in failed. Please try again.',
+      saml_invalid:          'SAML response could not be verified.',
+      saml_no_email:         'Your identity provider did not share an email address.',
+      saml_tenant_not_found: 'No SSO configuration found for your domain. Contact your administrator.',
+      saml_missing_response: 'Sign-in request was not completed. Please try again.',
+      account_inactive:      'Your account has been deactivated. Contact your administrator.',
+      saml_not_configured:   'SAML SSO is not yet configured on this server.',
+      no_token:              'Sign-in session was lost. Please try again.',
+      storage_denied:        'Browser storage is blocked. Enable cookies and try again.',
     };
     mainErr.textContent = errorMessages[urlError] || 'An error occurred during sign-in.';
     history.replaceState(null, '', window.location.pathname);
   }
 
   // ── Microsoft SSO ─────────────────────────────────────────────────────────
-  btnMicrosoft.addEventListener('click', async () => {
+  formSso.addEventListener('submit', async (e) => {
+    e.preventDefault();
     mainErr.textContent = '';
+
+    const email = document.getElementById('sso-email').value.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      mainErr.textContent = 'Please enter your work email address.';
+      return;
+    }
+
     btnMicrosoft.disabled = true;
     btnMicrosoft.classList.add('loading');
     try {
-      const res = await fetch('/api/auth/saml/initiate');
+      const res = await fetch('/api/auth/saml/initiate?email=' + encodeURIComponent(email));
+
+      if (res.status === 404) {
+        throw new Error('No SSO is configured for this email domain. Contact your administrator.');
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Server error ${res.status}`);

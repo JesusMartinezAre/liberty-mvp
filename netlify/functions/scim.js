@@ -1,38 +1,17 @@
 'use strict';
 
-// ── Firebase Admin ─────────────────────────────────────────────────────────
-const { getAdmin, getDb } = require('./lib/firebaseAdmin');
-const admin               = getAdmin();
-const db                  = getDb();
-const USERS_COLLECTION    = 'users';
+// ── Dependencies ───────────────────────────────────────────────────────────
+const { getAdmin, getDb }  = require('./lib/firebaseAdmin');
+const { authenticateScim } = require('./_shared/scim-auth');
+
+// Initialise at cold-start so the first warm request pays no init cost.
+const admin            = getAdmin();
+const db               = getDb();
+const USERS_COLLECTION = 'users';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const SCIM_PREFIX       = '/scim/v2';
 const SCIM_CONTENT_TYPE = 'application/scim+json';
-
-// ── Auth guard ─────────────────────────────────────────────────────────────
-// Returns 'entra' | 'okta' | null so callers can tag new users by source.
-function authenticate(headers) {
-  const authHeaderKey = Object.keys(headers).find(k => k.toLowerCase() === 'authorization');
-  const raw = headers[authHeaderKey] || '';
-
-  let token = null;
-  if (raw.toLowerCase().startsWith('bearer ')) {
-    token = raw.slice(7).trim();
-  } else if (raw.length > 0) {
-    token = raw.trim();
-  }
-
-  if (!token) return null;
-
-  if (process.env.SCIM_AUTH_TOKEN_LIBERTY && token === process.env.SCIM_AUTH_TOKEN_LIBERTY) {
-    return 'entra';
-  }
-  if (process.env.SCIM_AUTH_TOKEN && token === process.env.SCIM_AUTH_TOKEN) {
-    return 'okta';
-  }
-  return null;
-}
 
 // ── Response helpers ───────────────────────────────────────────────────────
 function respond(statusCode, body) {
@@ -84,7 +63,7 @@ function parsePath(path) {
   };
 }
 
-// ── SCIM ↔ Firestore mappers ───────────────────────────────────────────────
+// ── SCIM ↔ Firestore mapper ────────────────────────────────────────────────
 function toScimUser(docId, data) {
   const given  = data.givenName  || '';
   const family = data.familyName || '';
@@ -174,7 +153,9 @@ async function handleGetUserById(resourceId) {
 }
 
 // ── POST /Users ────────────────────────────────────────────────────────────
-async function handlePostUsers(event, source) {
+// domain is stamped onto every created document so Firestore records which
+// tenant provisioned the user — required for multi-tenant user isolation.
+async function handlePostUsers(event, source, domain) {
   let payload;
   try {
     payload = JSON.parse(event.body || '{}');
@@ -207,21 +188,22 @@ async function handlePostUsers(event, source) {
   const now    = admin.firestore.FieldValue.serverTimestamp();
 
   await newRef.set({
-    id:               newRef.id,
-    scimId:           newRef.id,
-    entraExternalId:  source === 'entra' ? externalId : null,
-    oktaExternalId:   source === 'okta'  ? externalId : null,
-    userName:         email,
+    id:                newRef.id,
+    scimId:            newRef.id,
+    entraExternalId:   source === 'entra' ? externalId : null,
+    oktaExternalId:    source === 'okta'  ? externalId : null,
+    userName:          email,
     email,
     givenName,
     familyName,
     displayName,
     active,
-    role:             'viewer',
-    groups:           [],
-    source:           source === 'entra' ? 'entra-scim' : 'okta-scim',
-    createdAt:        now,
-    updatedAt:        now,
+    role:              'viewer',
+    groups:            [],
+    source:            source === 'entra' ? 'entra-scim' : 'okta-scim',
+    tenantDomain:      domain,   // multi-tenant: ties this user to the provisioning tenant
+    createdAt:         now,
+    updatedAt:         now,
     lastProvisionedAt: now,
   });
 
@@ -277,7 +259,7 @@ async function handlePatchUser(resourceId, event) {
 
 // ── PUT /Users/{id} ───────────────────────────────────────────────────────
 // Full replacement. Only overwrites the external ID field that belongs to
-// the calling IdP — Okta's field is never clobbered by an Entra request.
+// the calling IdP — the other IdP's field is never clobbered.
 async function handlePutUser(resourceId, event, source) {
   const docRef = db.collection(USERS_COLLECTION).doc(resourceId);
   const snap   = await docRef.get();
@@ -323,7 +305,7 @@ async function handlePutUser(resourceId, event, source) {
 
 // ── DELETE /Users/{id} ────────────────────────────────────────────────────
 // Soft-delete: sets active=false rather than removing the Firestore document.
-// Hard deletion would break audit trails and linked evidence_players records.
+// Hard deletion would break audit trails and linked records.
 async function handleDeleteUser(resourceId) {
   const docRef = db.collection(USERS_COLLECTION).doc(resourceId);
   const snap   = await docRef.get();
@@ -347,10 +329,10 @@ async function handleDeleteUser(resourceId) {
 }
 
 // ── /Users router ──────────────────────────────────────────────────────────
-async function handleUsers(method, resourceId, event, source) {
+async function handleUsers(method, resourceId, event, source, domain) {
   if (method === 'GET'    && !resourceId) return handleGetUsers(event);
   if (method === 'GET'    &&  resourceId) return handleGetUserById(resourceId);
-  if (method === 'POST')                  return handlePostUsers(event, source);
+  if (method === 'POST')                  return handlePostUsers(event, source, domain);
   if (method === 'PUT'    &&  resourceId) return handlePutUser(resourceId, event, source);
   if (method === 'PATCH'  &&  resourceId) return handlePatchUser(resourceId, event);
   if (method === 'DELETE' &&  resourceId) return handleDeleteUser(resourceId);
@@ -383,18 +365,24 @@ function handleServiceProviderConfig() {
 // ── Main handler ───────────────────────────────────────────────────────────
 exports.handler = async (event) => {
   try {
-    // authenticate() returns 'entra' | 'okta' | null — null means unauthorized.
-    const source = authenticate(event.headers);
-    if (!source) {
+    // authenticateScim() performs a two-phase check:
+    //   Phase 1 — O(1) Firestore index lookup by SHA-256(token)
+    //   Phase 2 — bcrypt.compare() as the final cryptographic gate
+    // Returns { domain, source, config } on success, null on any failure.
+    const tenant = await authenticateScim(event.headers);
+    if (!tenant) {
       return scimError(401, 'Invalid or missing Bearer token.');
     }
+
+    const { source, domain } = tenant;
+    console.log(`[SCIM] Request from tenant: ${domain} | source: ${source} | ${event.httpMethod} ${event.path}`);
 
     const method                   = event.httpMethod.toUpperCase();
     const { resource, resourceId } = parsePath(event.path);
 
     switch (resource) {
       case 'Users':
-        return await handleUsers(method, resourceId, event, source);
+        return await handleUsers(method, resourceId, event, source, domain);
 
       case 'ServiceProviderConfig':
         return method === 'GET'

@@ -1,22 +1,25 @@
 'use strict';
 
-// ── SAML Assertion Consumer Service (ACS) ─────────────────────────────────
+// ── SAML Assertion Consumer Service (ACS) — Multi-Tenant ──────────────────
 // POST /api/auth/saml/callback
 //
-// Entra ID POSTs a SAMLResponse (URL-encoded form body) here after the user
-// authenticates. This handler:
-//   1. Parses the form body
-//   2. Validates the SAMLResponse XML signature with the IdP certificate
-//   3. Normalises Entra's attribute claims into { email, givenName, ... }
-//   4. JIT-provisions the user in Firestore if they don't exist yet
-//   5. Issues a signed session JWT
-//   6. 302 redirects to /auth/saml-complete.html?t=<jwt>
-//      (saml-complete.html scrubs the token from the URL bar and stores it)
+// Handles both SP-initiated and IdP-initiated SAML flows.
+//
+// Tenant resolution — two-layer strategy:
+//   Primary   — pre-parse the SAMLResponse XML to extract <Issuer>; query
+//               sso_configs where idpEntityId == issuer.  Works for both flows
+//               regardless of whether a RelayState is present.
+//   Secondary — RelayState may carry the tenantDomain set by saml-initiate.js
+//               but is not used as an authoritative source of tenant identity.
+//
+// InResponseTo replay prevention is handled statelessly via Firestore
+// (saml_requests collection) through node-saml's cacheProvider interface
+// configured in lib/saml.js. Netlify Functions share no in-memory session state.
 
-const { getSaml }      = require('./lib/saml');
-const { jitProvision } = require('./lib/jit');
-const { signSession }  = require('./lib/session');
-const { getDb }        = require('./lib/firebaseAdmin');
+const { getSamlForIssuer } = require('./lib/saml');
+const { jitProvision }     = require('./lib/jit');
+const { signSession }      = require('./lib/session');
+const { getDb }            = require('./lib/firebaseAdmin');
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -63,6 +66,23 @@ function parseFormBody(body, isBase64) {
     }
   }
   return result;
+}
+
+// Pre-parse the SAMLResponse (without signature verification) to extract the
+// <Issuer> element. Used only for tenant resolution — all cryptographic
+// validation happens afterward inside saml.validatePostResponseAsync().
+//
+// Regex is intentional: Node.js has no built-in XML parser and adding a
+// dependency for one attribute read is unnecessary. SAML Issuer values are
+// URIs — no nested elements, no HTML entities to handle.
+function extractIssuer(samlResponseBase64) {
+  try {
+    const xml   = Buffer.from(samlResponseBase64, 'base64').toString('utf8');
+    const match = xml.match(/<(?:[A-Za-z0-9]+:)?Issuer[^>]*>([^<]+)<\/(?:[A-Za-z0-9]+:)?Issuer>/);
+    return match ? match[1].trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 // Normalise Microsoft Entra ID SAML attribute claims into a standard object.
@@ -119,14 +139,6 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: { 'Content-Type': 'text/plain' }, body: 'Method not allowed.' };
   }
 
-  let saml;
-  try {
-    saml = getSaml();
-  } catch (err) {
-    console.error('[saml-callback] Config error:', err.message);
-    return redirect('/auth/login.html?error=saml_not_configured');
-  }
-
   try {
     const body = parseFormBody(event.body, event.isBase64Encoded);
 
@@ -135,26 +147,46 @@ exports.handler = async (event) => {
       return redirect('/auth/login.html?error=saml_missing_response');
     }
 
-    // ── 1. Validate the SAMLResponse XML signature ──────────────────────────
+    // ── 1. Resolve tenant from the SAMLResponse <Issuer> ───────────────────
+    // The Issuer is extracted before signature validation so we know which
+    // tenant's IdP certificate to use.  The pre-parse is intentionally
+    // unauthenticated — the SAML library re-validates the issuer inside
+    // validatePostResponseAsync() once the correct config is loaded.
+    const issuer = extractIssuer(body.SAMLResponse);
+    if (!issuer) {
+      console.error('[saml-callback] Could not extract <Issuer> from SAMLResponse.');
+      return redirect('/auth/login.html?error=saml_invalid');
+    }
+
+    const tenant = await getSamlForIssuer(issuer);
+    if (!tenant) {
+      console.error('[saml-callback] No enabled sso_configs entry for issuer:', issuer);
+      return redirect('/auth/login.html?error=saml_tenant_not_found');
+    }
+
+    const { saml, domain } = tenant;
+    console.log('[saml-callback] Resolved tenant:', domain, '| issuer:', issuer);
+
+    // ── 2. Validate the SAMLResponse XML signature ──────────────────────────
     const { profile } = await saml.validatePostResponseAsync(body);
 
     if (!profile) {
-      console.error('[saml-callback] Empty profile after validation.');
+      console.error('[saml-callback] Empty profile after validation for tenant:', domain);
       return redirect('/auth/login.html?error=saml_invalid');
     }
 
     console.log('[saml-callback] Raw profile keys:', Object.keys(profile).join(', '));
 
-    // ── 2. Normalise claims ─────────────────────────────────────────────────
+    // ── 3. Normalise claims ─────────────────────────────────────────────────
     const identity = normalizeProfile(profile);
-    console.log('[saml-callback] Resolved email:', identity.email);
+    console.log('[saml-callback] Resolved email:', identity.email, '| domain:', domain);
 
     if (!identity.email) {
-      console.error('[saml-callback] No email found in SAML assertion.');
+      console.error('[saml-callback] No email found in SAML assertion for tenant:', domain);
       return redirect('/auth/login.html?error=saml_no_email');
     }
 
-    // ── 3. JIT provision ────────────────────────────────────────────────────
+    // ── 4. JIT provision ────────────────────────────────────────────────────
     const db = getDb();
     const { docId, user } = await jitProvision(db, {
       ...identity,
@@ -162,11 +194,17 @@ exports.handler = async (event) => {
     });
 
     if (user.active === false) {
-      console.warn('[saml-callback] Account inactive:', docId);
+      console.warn('[saml-callback] Account inactive:', docId, '| domain:', domain);
       return redirect('/auth/login.html?error=account_inactive');
     }
 
-    // ── 4. Issue session JWT ────────────────────────────────────────────────
+    // Stamp tenantDomain for multi-tenant user isolation.
+    // Conditional update avoids clobbering users already set via SCIM provisioning.
+    if (!user.tenantDomain) {
+      await db.collection('users').doc(docId).update({ tenantDomain: domain });
+    }
+
+    // ── 5. Issue session JWT ────────────────────────────────────────────────
     const token = await signSession({
       sub:         docId,
       email:       identity.email,
@@ -177,7 +215,7 @@ exports.handler = async (event) => {
       displayName: user.displayName || identity.displayName,
     });
 
-    // ── 5. Redirect to saml-complete.html — it scrubs the URL then stores ───
+    // ── 6. Redirect to saml-complete.html — it scrubs the URL then stores ───
     return redirect(`/auth/saml-complete.html?t=${encodeURIComponent(token)}`);
 
   } catch (err) {
