@@ -1,7 +1,7 @@
 'use strict';
 
-const { getDb }   = require('./lib/firebaseAdmin');
-const { appJson } = require('./lib/http');
+const { getAuth, getDb } = require('./lib/firebaseAdmin');
+const { appJson }        = require('./lib/http');
 
 // ── Provider registry ──────────────────────────────────────────────────────
 // Keyed by the exact `iss` claim in the JWT.
@@ -159,14 +159,20 @@ exports.handler = async (event) => {
       return appJson(403, { active: false, reason: 'User account is inactive.' });
     }
 
+    // Mint a Firebase Custom Token so the client can call
+    // firebase.auth().signInWithCustomToken() and satisfy
+    // Firestore security rules that require request.auth != null.
+    const firebaseToken = await getAuth().createCustomToken(doc.id);
+
     return appJson(200, {
-      active:      true,
-      uid:         doc.id,
-      email:       user.email,
-      role:        user.role        || 'viewer',
-      givenName:   user.givenName   || '',
-      familyName:  user.familyName  || '',
-      displayName: user.displayName || '',
+      active:        true,
+      uid:           doc.id,
+      email:         user.email,
+      role:          user.role        || 'viewer',
+      givenName:     user.givenName   || '',
+      familyName:    user.familyName  || '',
+      displayName:   user.displayName || '',
+      firebaseToken,
     });
 
   } catch (err) {

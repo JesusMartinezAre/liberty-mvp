@@ -2,6 +2,7 @@
 // Okta SSO auth guard, sign-out, read-only mode.
 
 import { state }                       from './state.js';
+import { auth }                        from './firebase-config.js';
 import { EMAILJS_KEY }                 from './config.js';
 import { showToast }                   from './toast.js';
 import { seedIfEmpty, startListener }  from './api.js';
@@ -60,6 +61,17 @@ export async function initAuthGuard() {
   state.currentUser  = user.displayName || user.givenName || user.email?.split('@')[0] || '';
   state.currentEmail = user.email || '';
 
+  // Sign into Firebase Auth with the custom token from /api/me so that
+  // Firestore security rules see request.auth != null before any listener opens.
+  // We await this explicitly — startListener() must not run until it resolves.
+  if (user.firebaseToken) {
+    try {
+      await auth.signInWithCustomToken(user.firebaseToken);
+    } catch (fbErr) {
+      console.warn('[auth] Firebase custom token sign-in failed:', fbErr.message);
+    }
+  }
+
   // Boot Firestore listener exactly once per session.
   if (!state._appBooted) {
     state._appBooted = true;
@@ -88,6 +100,9 @@ export async function handleSignOut() {
   state.currentVenue           = 'metlife';
   state._activityAll           = [];
 state.fieldMode              = false;
+
+  // Sign out of Firebase Auth so the next user starts with a clean state.
+  await auth.signOut().catch(() => {});
 
   // Replace (not push) so the Back button cannot return to the dashboard.
   window.location.replace('/auth/login.html');
