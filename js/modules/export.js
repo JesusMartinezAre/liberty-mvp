@@ -4,6 +4,14 @@
 import { showToast }  from './toast.js';
 import { getFiltered, statusConfig } from './render.js';
 
+// Installed units first, then not-installed. Preserves the existing
+// digitalHeader alphabetical order within each group (JS sort is stable).
+function sortedForExport(items) {
+  return items.slice().sort(
+    (a, b) => (a.status === 'Installed at Venue' ? 0 : 1) - (b.status === 'Installed at Venue' ? 0 : 1)
+  );
+}
+
 async function _urlToDataUri(url) {
   try {
     const res  = await fetch(url);
@@ -47,7 +55,7 @@ async function _stitchThumbs(photos) {
 
 export async function exportExcel() {
   if (typeof ExcelJS === 'undefined') { showToast('⚠ ExcelJS library not loaded'); return; }
-  const f = getFiltered();
+  const f = sortedForExport(getFiltered());
   showToast('⏳ Building Excel — fetching images…');
 
   const STATUS_COLORS = {
@@ -172,7 +180,7 @@ export async function exportExcel() {
 }
 
 export async function exportPDF() {
-  const f = getFiltered();
+  const f = sortedForExport(getFiltered());
   const w = window.open('', '_blank');
   if (!w) { showToast('⚠ Pop-up blocked — please allow pop-ups for this site'); return; }
   showToast('⏳ Generating PDF — downloading images…');
