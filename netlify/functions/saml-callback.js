@@ -127,12 +127,24 @@ function normalizeProfile(profile) {
   ) || `${givenName} ${familyName}`.trim() || email;
 
   // Extract App Role claim — only accept values on the whitelist.
-  // Entra sends the claim as a string or single-element array.
-  const rawRole = profile[SAML_ROLE_CLAIM];
+  //
+  // Entra sends the role under different keys depending on how the claim was configured:
+  //   - URI form: when App Roles are emitted natively (no manual claim setup needed)
+  //   - Short form 'role': when manually added in Attributes & Claims → Name: "role"
+  //
+  // We try both so either Entra configuration works without code changes.
+  const rawRole = profile[SAML_ROLE_CLAIM] ?? profile['role'] ?? null;
+
+  console.log('[saml-callback] role claim raw value:', JSON.stringify(rawRole));
+
   const roleValue = rawRole
-    ? (Array.isArray(rawRole) ? rawRole[0] : rawRole).trim().toLowerCase()
+    ? (Array.isArray(rawRole) ? rawRole[0] : String(rawRole)).trim().toLowerCase()
     : null;
   const samlRole = roleValue && ALLOWED_ROLES.has(roleValue) ? roleValue : null;
+
+  if (roleValue && !samlRole) {
+    console.warn('[saml-callback] Role claim received but not in whitelist:', roleValue);
+  }
 
   return {
     email:       email.toLowerCase(),
@@ -188,6 +200,7 @@ exports.handler = async (event) => {
     }
 
     console.log('[saml-callback] Raw profile keys:', Object.keys(profile).join(', '));
+    console.log('[saml-callback] Raw profile:', JSON.stringify(profile));
 
     // ── 3. Normalise claims ─────────────────────────────────────────────────
     const identity = normalizeProfile(profile);
