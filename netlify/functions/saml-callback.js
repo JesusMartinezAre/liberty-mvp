@@ -21,6 +21,9 @@ const { jitProvision }     = require('./lib/jit');
 const { signSession }      = require('./lib/session');
 const { getDb }            = require('./lib/firebaseAdmin');
 
+const SAML_ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
+const ALLOWED_ROLES   = new Set(['super_admin', 'admin', 'viewer']);
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function redirect(location) {
@@ -123,12 +126,21 @@ function normalizeProfile(profile) {
     'name',
   ) || `${givenName} ${familyName}`.trim() || email;
 
+  // Extract App Role claim — only accept values on the whitelist.
+  // Entra sends the claim as a string or single-element array.
+  const rawRole = profile[SAML_ROLE_CLAIM];
+  const roleValue = rawRole
+    ? (Array.isArray(rawRole) ? rawRole[0] : rawRole).trim().toLowerCase()
+    : null;
+  const samlRole = roleValue && ALLOWED_ROLES.has(roleValue) ? roleValue : null;
+
   return {
     email:       email.toLowerCase(),
     givenName,
     familyName,
     displayName,
     externalId:  profile.nameID || null,
+    samlRole,
   };
 }
 
@@ -187,10 +199,16 @@ exports.handler = async (event) => {
     }
 
     // ── 4. JIT provision ────────────────────────────────────────────────────
-    const db = getDb();
+    const db          = getDb();
+    const defaultRole = tenant.config.defaultRole || 'viewer';
+
+    console.log('[saml-callback] samlRole:', identity.samlRole, '| defaultRole:', defaultRole);
+
     const { docId, user } = await jitProvision(db, {
       ...identity,
-      provider: 'entra-saml',
+      provider:     'entra-saml',
+      overrideRole: identity.samlRole,
+      defaultRole,
     });
 
     if (user.active === false) {

@@ -11,6 +11,14 @@ const USERS_COLLECTION = 'users';
 /**
  * Find an existing user in Firestore or create one with default permissions.
  *
+ * Role assignment priority:
+ *   1. overrideRole — explicit role from IdP claim (Entra is authoritative when present)
+ *   2. defaultRole  — fallback from sso_configs.defaultRole (most restrictive)
+ *   3. 'viewer'     — hardcoded last-resort
+ *
+ * For existing users: role is updated only when overrideRole is present.
+ * If the IdP sends no claim, the existing role is preserved (allows manual overrides).
+ *
  * Lookup order:
  *   1. userName == email
  *   2. email    == email
@@ -19,10 +27,11 @@ const USERS_COLLECTION = 'users';
  *
  * @param {import('firebase-admin').firestore.Firestore} db
  * @param {{ email: string, givenName: string, familyName: string,
- *           displayName: string, provider: string, externalId: string|null }} identity
+ *           displayName: string, provider: string, externalId: string|null,
+ *           overrideRole?: string|null, defaultRole?: string }} identity
  * @returns {Promise<{ docId: string, user: object }>}
  */
-async function jitProvision(db, { email, givenName, familyName, displayName, provider, externalId }) {
+async function jitProvision(db, { email, givenName, familyName, displayName, provider, externalId, overrideRole = null, defaultRole = 'viewer' }) {
   // ── 1 & 2. Email-based lookups ─────────────────────────────────────────────
   let snap = await db.collection(USERS_COLLECTION).where('userName', '==', email).limit(1).get();
   console.log('[jit] Attempt 1 (userName ==', email, ') → docs found:', snap.size);
@@ -43,9 +52,23 @@ async function jitProvision(db, { email, givenName, familyName, displayName, pro
 
   // ── Return existing user ───────────────────────────────────────────────────
   if (!snap.empty) {
-    const doc = snap.docs[0];
+    const doc          = snap.docs[0];
+    const existingUser = doc.data();
+
+    // Entra is authoritative when it sends a role claim — update only then.
+    // If no claim arrived, preserve the existing role (respects manual assignments).
+    if (overrideRole && existingUser.role !== overrideRole) {
+      const admin = getAdmin();
+      await db.collection(USERS_COLLECTION).doc(doc.id).update({
+        role:      overrideRole,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log('[jit] Role updated for', doc.id, ':', existingUser.role, '->', overrideRole);
+      return { docId: doc.id, user: { ...existingUser, role: overrideRole } };
+    }
+
     console.log('[jit] Returning existing user doc:', doc.id);
-    return { docId: doc.id, user: doc.data() };
+    return { docId: doc.id, user: existingUser };
   }
 
   // ── 4. Create new user ─────────────────────────────────────────────────────
@@ -68,7 +91,7 @@ async function jitProvision(db, { email, givenName, familyName, displayName, pro
     familyName:        familyName || '',
     displayName:       resolvedDisplayName,
     active:            true,
-    role:              'viewer',
+    role:              overrideRole ?? defaultRole,
     groups:            [],
     source:            `${provider}-jit`,
     createdAt:         now,

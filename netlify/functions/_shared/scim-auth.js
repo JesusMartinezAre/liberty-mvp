@@ -57,7 +57,7 @@
 //   givenName:        string,
 //   familyName:       string,
 //   displayName:      string,
-//   role:             string,   "admin" | "editor" | "viewer"
+//   role:             string,   "super_admin" | "admin" | "viewer"
 //   active:           boolean,  false = soft-delete, never hard-delete
 //   passwordHash:     string?,  present only for local password accounts
 //   source:           string,   "entra-saml" | "entra-scim" | "okta-scim" | "local"
