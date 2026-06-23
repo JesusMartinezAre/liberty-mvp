@@ -108,7 +108,7 @@ async function handleGetUsers(event) {
     }
 
     const snap = await db.collection(USERS_COLLECTION)
-      .where('email', '==', parsed.value)
+      .where('email', '==', parsed.value.toLowerCase())
       .limit(1)
       .get();
 
@@ -163,7 +163,8 @@ async function handlePostUsers(event, source, domain) {
     return scimError(400, 'Request body is not valid JSON.');
   }
 
-  const email       = payload.userName || payload.emails?.[0]?.value || null;
+  const rawEmail    = payload.userName || payload.emails?.[0]?.value || null;
+  const email       = rawEmail ? rawEmail.toLowerCase() : null;
   const givenName   = payload.name?.givenName  || '';
   const familyName  = payload.name?.familyName || '';
   const displayName = payload.name?.formatted  || `${givenName} ${familyName}`.trim();
@@ -276,7 +277,8 @@ async function handlePutUser(resourceId, event, source) {
   }
 
   const existing    = snap.data();
-  const email       = payload.userName || payload.emails?.[0]?.value || existing.email;
+  const rawEmail    = payload.userName || payload.emails?.[0]?.value || existing.email;
+  const email       = rawEmail ? rawEmail.toLowerCase() : existing.email;
   const givenName   = payload.name?.givenName  || '';
   const familyName  = payload.name?.familyName || '';
   const displayName = payload.name?.formatted  || `${givenName} ${familyName}`.trim();
