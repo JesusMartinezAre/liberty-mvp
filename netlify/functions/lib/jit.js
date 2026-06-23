@@ -57,6 +57,7 @@ async function jitProvision(db, { email, givenName, familyName, displayName, pro
 
     // Entra is authoritative when it sends a role claim — update only then.
     // If no claim arrived, preserve the existing role (respects manual assignments).
+    console.log('[jit] overrideRole:', overrideRole, '| existingRole:', existingUser.role);
     if (overrideRole && existingUser.role !== overrideRole) {
       const admin = getAdmin();
       await db.collection(USERS_COLLECTION).doc(doc.id).update({
